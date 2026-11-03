@@ -75,6 +75,7 @@ pub fn slugify(s: &str) -> String {
 /// matching names from the dashboard-icons and selfh.st sets. The browser
 /// hides results whose preview fails to load.
 pub async fn search(
+    RequireAdmin(_): RequireAdmin,
     State(state): State<AppState>,
     Query(q): Query<SearchQuery>,
 ) -> Result<Json<Vec<IconHit>>, ApiError> {

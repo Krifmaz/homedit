@@ -94,6 +94,13 @@ pub enum LiveEvent {
         /// New version.
         version: i64,
     },
+    /// Port scan progress (sent to admins only).
+    Scan {
+        /// Scan job number.
+        id: u64,
+        /// The scanner's event.
+        data: serde_json::Value,
+    },
 }
 
 impl LiveEvent {
@@ -102,6 +109,7 @@ impl LiveEvent {
         match self {
             Self::Status { .. } => "status",
             Self::Config { .. } => "config",
+            Self::Scan { .. } => "scan",
         }
     }
 }
@@ -270,20 +278,32 @@ pub async fn check_all(state: &AppState, client: &reqwest::Client) -> anyhow::Re
     let dash = state.db.load_dashboard().await?;
     let ids: std::collections::HashSet<i64> = dash.services().filter_map(|s| s.id).collect();
     state.status.retain(&ids);
-    let checks: Vec<(i64, StatusCheck)> = dash
+    let checks: Vec<(i64, String, StatusCheck)> = dash
         .services()
-        .filter_map(|s| Some((s.id?, StatusCheck::for_service(s)?)))
+        .filter_map(|s| Some((s.id?, s.name.clone(), StatusCheck::for_service(s)?)))
         .collect();
     let n = checks.len();
-    let samples: Vec<StatusSample> = futures::stream::iter(checks)
-        .map(|(id, c)| async move { probe(client, id, &c).await })
+    let samples: Vec<(String, &'static str, StatusSample)> = futures::stream::iter(checks)
+        .map(|(id, name, c)| async move {
+            let kind = match c {
+                StatusCheck::Http { .. } => "http",
+                StatusCheck::Tcp { .. } => "tcp",
+            };
+            (name, kind, probe(client, id, &c).await)
+        })
         .buffer_unordered(MAX_CONCURRENT_PROBES)
         .collect()
         .await;
-    for s in samples {
+    for (name, kind, s) in samples {
         if let Err(e) = state.db.insert_sample(&s).await {
             tracing::warn!(error = %e, "cannot store status sample");
         }
+        state.metrics.record_status_check(
+            &name,
+            kind,
+            s.ok,
+            s.latency_ms.map(|ms| f64::from(ms) / 1000.0),
+        );
         state.status.record(s);
     }
     Ok(n)

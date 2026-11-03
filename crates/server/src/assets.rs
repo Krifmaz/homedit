@@ -76,20 +76,25 @@ async fn index(state: &AppState, user: &CurrentUser) -> Response {
     let template = Ui::get("index.html")
         .map(|f| String::from_utf8_lossy(&f.data).into_owned())
         .unwrap_or_else(|| FALLBACK_INDEX.to_owned());
-    let data = match state.db.load_versioned().await {
-        Ok((version, dash)) => {
-            let doc = view::to_view(
-                &dash,
-                version,
-                Mode::Dashboard {
-                    show_hidden: user.can_view_hidden(),
-                },
-            );
-            serde_json::json!({ "dashboard": doc, "status": state.status.snapshot() })
-        }
-        Err(e) => {
-            tracing::error!(error = %e, "cannot load dashboard for first paint");
-            serde_json::Value::Null
+    let data = if !user.can_view_dashboard() {
+        // Not signed in and anonymous viewing is off: the UI shows login.
+        serde_json::Value::Null
+    } else {
+        match state.db.load_versioned().await {
+            Ok((version, dash)) => {
+                let doc = view::to_view(
+                    &dash,
+                    version,
+                    Mode::Dashboard {
+                        show_hidden: user.can_view_hidden(),
+                    },
+                );
+                serde_json::json!({ "dashboard": doc, "status": state.status.snapshot() })
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "cannot load dashboard for first paint");
+                serde_json::Value::Null
+            }
         }
     };
     let html = template.replacen(DATA_PLACEHOLDER, &inline_json(&data), 1);

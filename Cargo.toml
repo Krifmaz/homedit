@@ -37,6 +37,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2"
 homedit-core = { path = "crates/core" }
 homedit-db = { path = "crates/db" }
+homedit-auth = { path = "crates/auth" }
+homedit-widgets = { path = "crates/widgets" }
+homedit-scanner = { path = "crates/scanner" }
 homedit-discovery = { path = "crates/discovery" }
 homedit-import = { path = "crates/import" }
 homedit-ops = { path = "crates/ops" }

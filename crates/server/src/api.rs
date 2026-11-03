@@ -30,10 +30,10 @@ use serde::{Deserialize, Serialize};
 use tokio_stream::StreamExt as _;
 use tokio_stream::wrappers::BroadcastStream;
 
-use crate::auth::{CurrentUser, RequireAdmin, Role};
+use crate::auth::{RequireAdmin, RequireViewer};
 use crate::status::LiveEvent;
 use crate::view::{self, DocView, Mode};
-use crate::{ApiError, AppState, icons};
+use crate::{ApiError, AppState, icons, import, scan, secrets, widgets};
 
 /// Number of history entries returned by `/api/history`.
 pub const HISTORY_LIMIT: i64 = 200;
@@ -41,7 +41,7 @@ pub const HISTORY_LIMIT: i64 = 200;
 /// Builds the `/api` router.
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/me", get(me))
+        .route("/me", get(homedit_auth::routes::me))
         .route("/dashboard", get(dashboard))
         .route("/status", get(status))
         .route("/events", get(events))
@@ -50,42 +50,18 @@ pub fn router() -> Router<AppState> {
         .route("/history/{version}", get(history_get))
         .route("/history/{version}/restore", post(history_restore))
         .route("/icons", get(icons::search).post(icons::upload))
+        .route("/widgets/catalog", get(widgets::catalog))
+        .route("/widgets/test", post(widgets::test))
+        .route("/widgets/{id}/data", get(widgets::data))
+        .route("/import", post(import::upload))
+        .route("/scan", get(scan::current).post(scan::start))
+        .route("/scan/history", get(scan::history))
         .fallback(|| async { ApiError::not_found() })
-}
-
-/// Response of `/api/me`.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Me {
-    /// Signed-in user, or `null`.
-    pub user: Option<MeUser>,
-    /// Effective role.
-    pub role: Role,
-    /// Whether login is enabled.
-    pub auth_enabled: bool,
-    /// Token to send as `X-CSRF-Token` on mutations.
-    pub csrf_token: String,
-}
-
-/// The signed-in user.
-#[derive(Debug, Serialize)]
-pub struct MeUser {
-    /// Display name.
-    pub name: String,
-}
-
-async fn me(user: CurrentUser) -> Json<Me> {
-    Json(Me {
-        user: user.name.map(|name| MeUser { name }),
-        role: user.role,
-        auth_enabled: false,
-        csrf_token: String::new(),
-    })
 }
 
 async fn dashboard(
     State(state): State<AppState>,
-    user: CurrentUser,
+    RequireViewer(user): RequireViewer,
 ) -> Result<Json<DocView>, ApiError> {
     let (version, dash) = state.db.load_versioned().await?;
     Ok(Json(view::to_view(
@@ -99,7 +75,7 @@ async fn dashboard(
 
 async fn status(
     State(state): State<AppState>,
-    user: CurrentUser,
+    RequireViewer(user): RequireViewer,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let mut snap = state.status.snapshot();
     if !user.can_view_hidden() {
@@ -128,7 +104,7 @@ fn visible_ids(g: &view::GroupView) -> Vec<i64> {
 
 async fn events(
     State(state): State<AppState>,
-    user: CurrentUser,
+    RequireViewer(user): RequireViewer,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let visible: Option<std::collections::HashSet<i64>> = if user.can_view_hidden() {
         None
@@ -142,12 +118,17 @@ async fn events(
                 .collect(),
         )
     };
+    let is_admin = user.is_admin();
     let stream = BroadcastStream::new(state.status.subscribe()).filter_map(move |ev| {
         // A lagging client just misses some events; the next ones arrive.
         let ev = ev.ok()?;
         if let (LiveEvent::Status { service_id, .. }, Some(v)) = (&ev, &visible)
             && !v.contains(service_id)
         {
+            return None;
+        }
+        // Scan progress is for admins only.
+        if matches!(ev, LiveEvent::Scan { .. }) && !is_admin {
             return None;
         }
         let mut data = serde_json::to_value(&ev).ok()?;
@@ -202,11 +183,12 @@ async fn put_config(
 ) -> Result<Json<Saved>, ApiError> {
     let expected = if_match(&headers)?;
     let stored = state.db.load_dashboard().await?;
-    let dash = view::from_view(&doc, &stored)
+    let mut dash = view::from_view(&doc, &stored)
         .map_err(|e| ApiError::new(StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
+    secrets::seal(&mut dash, state.auth.secrets());
     let (version, _) = state
         .db
-        .save_dashboard(&dash, expected, admin.name.as_deref(), Some("edited"))
+        .save_dashboard(&dash, expected, Some(&admin.author()), Some("edited"))
         .await?;
     state.status.publish(LiveEvent::Config { version });
     Ok(Json(Saved { version }))
@@ -237,7 +219,7 @@ async fn history_restore(
     let summary = format!("restored version {version}");
     let (new_version, _) = state
         .db
-        .save_dashboard(&dash, None, admin.name.as_deref(), Some(&summary))
+        .save_dashboard(&dash, None, Some(&admin.author()), Some(&summary))
         .await?;
     state.status.publish(LiveEvent::Config {
         version: new_version,
