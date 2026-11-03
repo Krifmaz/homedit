@@ -17,11 +17,19 @@ axum.workspace = true
 futures.workspace = true
 homedit-core.workspace = true
 homedit-db.workspace = true
+homedit-auth.workspace = true
+homedit-discovery.workspace = true
+homedit-import.workspace = true
+homedit-ops.workspace = true
+homedit-scanner.workspace = true
+homedit-widgets.workspace = true
+sqlx.workspace = true
 mime_guess.workspace = true
 reqwest.workspace = true
 rust-embed.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tower-http.workspace = true
@@ -30,4 +38,5 @@ tracing-subscriber.workspace = true
 
 [dev-dependencies]
 http-body-util.workspace = true
+tempfile.workspace = true
 tower.workspace = true

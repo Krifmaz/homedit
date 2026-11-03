@@ -1,0 +1,39 @@
+[package]
+name = "homedit-auth"
+description = "Users, sessions, roles, CSRF, OIDC, encrypted secrets and SSRF protection for homedit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "homedit_auth"
+
+[dependencies]
+aes-gcm = "0.10"
+argon2 = { version = "0.5", features = ["std"] }
+axum.workspace = true
+base64 = "0.22"
+cookie = "0.18"
+homedit-core.workspace = true
+ipnet = { version = "2", features = ["serde"] }
+# OIDC protocol only; HTTP goes through the workspace reqwest via a small adapter.
+openidconnect = { version = "4", default-features = false }
+rand = "0.8"
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+sqlx.workspace = true
+subtle = "2.6"
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+zeroize = { version = "1", features = ["zeroize_derive"] }
+
+[dev-dependencies]
+http-body-util.workspace = true
+tempfile.workspace = true
+tower.workspace = true

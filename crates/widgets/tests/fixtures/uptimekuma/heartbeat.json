@@ -1,0 +1,9 @@
+{"heartbeatList": {
+   "1": [{"status": 0, "time": "2026-11-03 09:58:00.123", "msg": "timeout", "ping": null},
+         {"status": 1, "time": "2026-11-03 09:59:00.118", "msg": "200 - OK", "ping": 41}],
+   "2": [{"status": 1, "time": "2026-11-03 09:58:30.010", "msg": "200 - OK", "ping": 28},
+         {"status": 0, "time": "2026-11-03 09:59:30.004", "msg": "connect ECONNREFUSED 192.168.1.40:8096", "ping": null}],
+   "3": [{"status": 1, "time": "2026-11-03 09:59:10.500", "msg": "", "ping": 1}],
+   "4": [{"status": 3, "time": "2026-11-03 09:59:12.000", "msg": "Under maintenance", "ping": null}],
+   "5": []},
+ "uptimeList": {"1_24": 0.9986, "2_24": 0.9514, "3_24": 1, "4_24": 0.9}}

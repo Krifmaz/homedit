@@ -1,0 +1,4 @@
+[
+  {"id": 1, "name": "Example Indexer", "enable": true, "protocol": "torrent", "priority": 25},
+  {"id": 2, "name": "Disabled Indexer", "enable": false, "protocol": "usenet", "priority": 25}
+]

@@ -1,0 +1,12 @@
+{"config": {"slug": "home lab", "title": "Homelab", "description": null, "icon": "/icon.svg", "theme": "auto", "published": true, "showTags": false, "customCSS": "", "footerText": null, "showPoweredBy": true, "googleAnalyticsId": null, "showCertificateExpiry": false, "autoRefreshInterval": 300},
+ "incident": null,
+ "publicGroupList": [
+   {"id": 1, "name": "Media", "weight": 1, "monitorList": [
+     {"id": 1, "name": "Plex", "sendUrl": 0, "type": "http"},
+     {"id": 2, "name": "Jellyfin", "sendUrl": 0, "type": "http"}]},
+   {"id": 2, "name": "Infrastructure", "weight": 2, "monitorList": [
+     {"id": 3, "name": "NAS", "sendUrl": 0, "type": "ping"},
+     {"id": 4, "name": "Backup server", "sendUrl": 0, "type": "port"},
+     {"id": 5, "name": "Router", "sendUrl": 0, "type": "ping"}]}
+ ],
+ "maintenanceList": []}

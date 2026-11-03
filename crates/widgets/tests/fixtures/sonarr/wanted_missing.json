@@ -1,0 +1,2 @@
+{"page": 1, "pageSize": 1, "sortKey": "airDateUtc", "sortDirection": "descending", "totalRecords": 37,
+ "records": [{"seriesId": 1, "episodeNumber": 3, "seasonNumber": 2, "title": "Pilot", "airDateUtc": "2026-10-01T01:00:00Z", "monitored": true, "hasFile": false, "id": 120}]}

@@ -1,0 +1,83 @@
+# Example docker compose setup for homedit.
+#
+#   docker compose -f deploy/docker-compose.yml up -d
+#
+# Then open http://<host>:3000.
+#
+# Docker discovery talks to a socket proxy that only allows read-only
+# container listing, instead of mounting the Docker socket into homedit.
+# homedit itself only ever sends GET requests, but the proxy makes that a
+# guarantee even if homedit were compromised.
+
+name: homedit
+
+services:
+  homedit:
+    image: ghcr.io/krifmaz/homedit:latest
+    container_name: homedit
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # 32+ random bytes, base64 or hex, used to encrypt stored secrets
+      # (API keys, passwords). Generate one with: openssl rand -base64 32
+      HOMEDIT_SECRET_KEY: ${HOMEDIT_SECRET_KEY:?set HOMEDIT_SECRET_KEY in .env}
+      # Docker discovery through the socket proxy below.
+      HOMEDIT_DOCKER_HOST: tcp://dockerproxy:2375
+      # Optional: require "Authorization: Bearer <token>" on /metrics.
+      # HOMEDIT_METRICS_TOKEN: change-me
+      TZ: ${TZ:-UTC}
+    volumes:
+      # SQLite database, uploaded icons and backups.
+      - homedit-data:/data
+      # Optional: an existing gethomepage config folder to import from the
+      # editor (read-only).
+      # - ./homepage-config:/import:ro
+    depends_on:
+      - dockerproxy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  dockerproxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:latest
+    container_name: homedit-dockerproxy
+    restart: unless-stopped
+    environment:
+      # Allow only GET /containers/* and /_ping; everything else is denied.
+      CONTAINERS: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    read_only: true
+    tmpfs:
+      - /run
+
+  # Alternative without the proxy: delete the dockerproxy service and
+  # HOMEDIT_DOCKER_HOST above, then give homedit the socket read-only and
+  # the socket's group (find it with `stat -c %g /var/run/docker.sock`):
+  #
+  #   homedit:
+  #     group_add: ["${DOCKER_GID:-999}"]
+  #     volumes:
+  #       - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+  homedit-data:
+
+# Example labels for discovery on any other container (gethomepage format):
+#
+#   labels:
+#     homepage.group: Media
+#     homepage.name: Sonarr
+#     homepage.icon: sonarr.png
+#     homepage.href: http://sonarr.example.lan
+#     homepage.description: TV shows
+#     homepage.widget.type: sonarr
+#     homepage.widget.url: http://sonarr:8989
+#     homepage.widget.key: ${SONARR_API_KEY}

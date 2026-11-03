@@ -1,0 +1,13 @@
+- Developer:
+    - Github:
+        - abbr: GH
+          href: https://github.com/
+    - Docs:
+        href: https://docs.rs
+        icon: rust.png
+- Social:
+    - Reddit:
+        - icon: reddit.png
+          href: https://reddit.com/
+          description: The front page
+          target: _blank
