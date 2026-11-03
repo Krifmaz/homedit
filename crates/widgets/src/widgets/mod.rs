@@ -10,6 +10,11 @@ use crate::schema::{FieldSpec, FieldType};
 use crate::widget::Widget;
 
 pub mod arr;
+pub mod docker;
+pub mod portainer;
+pub mod proxmox;
+pub mod qbittorrent;
+pub mod sabnzbd;
 
 /// Every built-in widget.
 pub fn all() -> Vec<Arc<dyn Widget>> {
@@ -17,6 +22,11 @@ pub fn all() -> Vec<Arc<dyn Widget>> {
         Arc::new(arr::Sonarr),
         Arc::new(arr::Radarr),
         Arc::new(arr::Prowlarr),
+        Arc::new(qbittorrent::QBittorrent),
+        Arc::new(sabnzbd::Sabnzbd),
+        Arc::new(proxmox::Proxmox),
+        Arc::new(portainer::Portainer),
+        Arc::new(docker::Docker),
     ]
 }
 
