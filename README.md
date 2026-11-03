@@ -47,6 +47,7 @@ admin, so only run this on a trusted network.
 |------------------|-------------------|-------------------------------------------------|
 | `crates/core`    | `homedit-core`    | Shared data model, icon names, status checks    |
 | `crates/db`      | `homedit-db`      | SQLite storage (sqlx), migrations, history      |
+| `crates/auth`    | `homedit-auth`    | Login (local, OIDC, proxy), roles, CSRF, encrypted secrets, SSRF guard |
 | `crates/server`  | `homedit`         | The axum server and binary, embeds `web/dist`   |
 | `crates/scanner` | `homedit-scanner` | Port scanner and app fingerprinting (Phase 4)   |
 | `web/`           | –                 | React + TypeScript + Vite frontend              |
