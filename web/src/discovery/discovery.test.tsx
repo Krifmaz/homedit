@@ -137,3 +137,68 @@ describe("backup panel", () => {
     );
   });
 });
+
+describe("rescans", () => {
+  it("labels intervals", async () => {
+    const { intervalLabel } = await import("./ScanPanel");
+    expect(intervalLabel(1)).toBe("hour");
+    expect(intervalLabel(6)).toBe("6 hours");
+    expect(intervalLabel(24)).toBe("day");
+    expect(intervalLabel(72)).toBe("3 days");
+    expect(intervalLabel(168)).toBe("week");
+    expect(intervalLabel(720)).toBe("30 days");
+  });
+
+  it("describes the next run", async () => {
+    const { scheduleTimes } = await import("./ScanPanel");
+    const base = {
+      enabled: true,
+      intervalHours: 6,
+      request: { targets: ["x"], ports: { kind: "common" as const }, fingerprint: true },
+    };
+    expect(scheduleTimes({ ...base, nextRunAt: 0 }, 1000)).toBe("Next run within a minute.");
+    expect(scheduleTimes({ ...base, nextRunAt: 5000 }, 1000)).toMatch(/^Next run .+\.$/);
+    expect(scheduleTimes({ ...base, enabled: false, nextRunAt: null, lastRunAt: 1 }, 1000)).toMatch(
+      /^Last run/,
+    );
+  });
+
+  it("saves a schedule with the form's targets", async () => {
+    const { api, user } = setup();
+    await user.click(await screen.findByRole("button", { name: /Edit/ }));
+    await user.click(await screen.findByRole("button", { name: "Find services" }));
+    await user.click(await screen.findByLabelText("Rescan on a schedule"));
+    await user.selectOptions(screen.getByLabelText("Every"), "week");
+    await user.click(screen.getByRole("button", { name: "Save schedule" }));
+    expect(await screen.findByText("Schedule saved.")).toBeInTheDocument();
+    const s = await api.scanSchedule();
+    expect(s.enabled).toBe(true);
+    expect(s.intervalHours).toBe(168);
+    expect(s.request.targets).toEqual(["192.168.1.0/24"]);
+    expect(screen.getByText(/Next run/)).toBeInTheDocument();
+  });
+
+  it("shows what changed on a rescan and raises a notice", async () => {
+    const { user } = setup();
+    await user.click(await screen.findByRole("button", { name: /Edit/ }));
+    await user.click(await screen.findByRole("button", { name: "Find services" }));
+    await user.click(screen.getByRole("button", { name: "Start scan" }));
+    await screen.findByText(/Found 4 open ports/);
+    expect(
+      screen.queryByRole("region", { name: "Changes since the last scan" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Start scan" }));
+    const changes = await screen.findByRole("region", { name: "Changes since the last scan" });
+    expect(changes).toHaveTextContent("Home Assistant");
+    expect(changes).toHaveTextContent("No longer answers on 192.168.1.30:5432");
+
+    // The panel lists the changes itself; the notice shows once it closes.
+    expect(screen.queryByText("Network changes found")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(await screen.findByText("Network changes found")).toBeInTheDocument();
+    expect(screen.getByText("New: Home Assistant at 192.168.1.30:8123")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("Network changes found")).not.toBeInTheDocument();
+  });
+});

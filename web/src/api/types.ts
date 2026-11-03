@@ -444,7 +444,8 @@ export type ScanEvent =
   | { event: "progress"; done: number; total: number; open: number }
   | { event: "port_open"; ip: string; port: number }
   | { event: "service"; ip: string; hostname?: string | null }
-  | { event: "finished"; open?: number; identified?: number; elapsed_ms?: number };
+  | { event: "finished"; open?: number; identified?: number; elapsed_ms?: number }
+  | { event: "changes"; messages: string[] };
 
 /** The running or last scan (`GET /api/scan`). */
 export interface ScanJob {
@@ -456,6 +457,8 @@ export interface ScanJob {
   /** Card suggestions keyed `ip:port`. */
   suggestions: Record<string, ServiceSuggestion>;
   error?: string | null;
+  /** Changes since the previous stored scan; absent for the first scan. */
+  diff?: ScanDiff | null;
 }
 
 /** A problem found while importing a gethomepage config. */
@@ -469,4 +472,31 @@ export interface ImportWarning {
 export interface ImportResult {
   version: string;
   warnings: ImportWarning[];
+}
+
+/** One service in a {@link ScanDiff}, with the host it lives on. */
+export interface ServiceChange {
+  ip: string;
+  hostname?: string | null;
+  service: DiscoveredService;
+}
+
+/** What changed since the previous stored scan. */
+export interface ScanDiff {
+  appeared: ServiceChange[];
+  disappeared: ServiceChange[];
+  changed: ServiceChange[];
+}
+
+/** The rescan schedule (`GET/PUT /api/scan/schedule`). */
+export interface ScanSchedule {
+  enabled: boolean;
+  /** Hours between rescans, 1 to 720. */
+  intervalHours: number;
+  /** What each rescan scans. */
+  request: ScanRequest;
+  /** When the last scheduled scan started (ms, read only). */
+  lastRunAt?: number | null;
+  /** When the next one is due (ms, read only). */
+  nextRunAt?: number | null;
 }

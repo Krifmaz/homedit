@@ -76,6 +76,10 @@ export interface AppState {
   clearError(): void;
   /** Whether the visitor must sign in (or run first-time setup) first. */
   needsLogin: boolean;
+  /** Messages to show as a notice, e.g. changes found by a scheduled rescan. */
+  notices: string[];
+  /** Dismiss all notices. */
+  dismissNotices(): void;
   /** Show (true) or leave (false) the sign-in page while browsing anonymously. */
   requestLogin(show: boolean): void;
   /** Whether the sign-in page was opened voluntarily (it can be left). */
@@ -139,6 +143,7 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
   const [session, setSession] = useState(0);
   const [unauthorized, setUnauthorized] = useState(false);
   const [wantLogin, setWantLogin] = useState(false);
+  const [notices, setNotices] = useState<string[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -168,6 +173,7 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
           return { ...prev, [e.serviceId]: { ...e, history } };
         }),
       () => api.dashboard().then((d) => alive && setView(d), loadFail),
+      (messages) => alive && setNotices((prev) => [...prev, ...messages].slice(-20)),
     );
     return () => {
       alive = false;
@@ -271,6 +277,8 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
         !!me?.setupRequired ||
         (!!me && me.authEnabled && me.role === null),
       requestLogin: setWantLogin,
+      notices,
+      dismissNotices: () => setNotices([]),
       loginOptional: wantLogin && !unauthorized && !me?.setupRequired && !!me && me.role !== null,
       refreshSession,
       logout,
@@ -292,6 +300,7 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
       reload,
       unauthorized,
       wantLogin,
+      notices,
       refreshSession,
       logout,
     ],

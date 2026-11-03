@@ -34,6 +34,11 @@ export function AccountMenu() {
           Password
         </button>
       )}
+      {me.role === "admin" && (
+        <a className="btn btn-icon" href="/api/docs" target="_blank" rel="noopener noreferrer">
+          API docs
+        </a>
+      )}
       <button type="button" className="btn" onClick={() => void app.logout()}>
         Sign out
       </button>

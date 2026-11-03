@@ -11,6 +11,7 @@ import { LoginPage } from "../auth/LoginPage";
 import { Drawer } from "../editor/Drawer";
 import { allGroups } from "../editor/ops";
 import { useApp } from "./context";
+import { Notices } from "./Notices";
 import { useApplySettings } from "./theme";
 import { Toolbar } from "./Toolbar";
 
@@ -91,6 +92,7 @@ export function App() {
         </main>
       </div>
       {(app.editing || app.target?.kind === "password") && <Drawer />}
+      <Notices />
     </>
   );
 }
