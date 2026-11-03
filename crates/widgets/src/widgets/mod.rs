@@ -9,7 +9,12 @@ use std::sync::Arc;
 use crate::schema::{FieldSpec, FieldType};
 use crate::widget::Widget;
 
+pub mod adguard;
 pub mod arr;
+pub mod customapi;
+pub mod pihole;
+pub mod seerr;
+pub mod uptimekuma;
 
 /// Every built-in widget.
 pub fn all() -> Vec<Arc<dyn Widget>> {
@@ -17,6 +22,13 @@ pub fn all() -> Vec<Arc<dyn Widget>> {
         Arc::new(arr::Sonarr),
         Arc::new(arr::Radarr),
         Arc::new(arr::Prowlarr),
+        Arc::new(pihole::PiHole),
+        Arc::new(adguard::AdGuard),
+        Arc::new(uptimekuma::UptimeKuma),
+        Arc::new(seerr::Overseerr),
+        Arc::new(seerr::Jellyseerr),
+        Arc::new(seerr::Seerr),
+        Arc::new(customapi::CustomApi),
     ]
 }
 
