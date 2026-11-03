@@ -1,0 +1,1 @@
+{"version": "v2.2.3", "versionUrl": "https://github.com/immich-app/immich/releases/tag/v2.2.3", "licensed": false, "build": "18913412345", "nodejs": "v22.20.0", "ffmpeg": "7.1.1-6", "imagemagick": "7.1.2-3", "libvips": "8.17.2", "exiftool": "13.36", "repository": "immich-app/immich", "sourceRef": "v2.2.3"}

@@ -1,0 +1,10 @@
+{
+  "connection_status": "connected",
+  "dht_nodes": 386,
+  "dl_info_data": 48318382080,
+  "dl_info_speed": 5242880,
+  "dl_rate_limit": 0,
+  "up_info_data": 12884901888,
+  "up_info_speed": 131072,
+  "up_rate_limit": 0
+}

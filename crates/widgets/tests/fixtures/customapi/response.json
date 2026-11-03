@@ -1,0 +1,1 @@
+{"status": "ok", "data": {"system": {"uptime": "86400", "load": [0.42, 0.37, 0.31], "memory": {"used_bytes": 3221225472, "percent": "41.5"}}, "network": {"rx_rate": 125000.5}, "hostname": "nas01", "latency_ms": 12}}

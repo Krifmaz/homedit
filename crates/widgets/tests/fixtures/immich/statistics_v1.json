@@ -1,0 +1,8 @@
+{
+  "photos": 1204,
+  "videos": 87,
+  "usage": 9876543210,
+  "usageByUser": [
+    {"userId": "0b5c2d1e-7a3f-4e19-9c8d-2f6a1b3c4d5e", "userName": "Admin", "photos": 1204, "videos": 87, "usage": 9876543210, "quotaSizeInBytes": null}
+  ]
+}

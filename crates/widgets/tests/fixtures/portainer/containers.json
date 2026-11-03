@@ -1,0 +1,48 @@
+[
+  {
+    "Id": "0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "Names": ["/portainer"],
+    "Image": "portainer/portainer-ce:2.21.4",
+    "Created": 1730000000,
+    "Labels": {},
+    "State": "running",
+    "Status": "Up 2 weeks",
+    "Portainer": {"ResourceControl": null}
+  },
+  {
+    "Id": "1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a",
+    "Names": ["/vaultwarden"],
+    "Image": "vaultwarden/server:1.32.3",
+    "Created": 1729900000,
+    "Labels": {},
+    "State": "running",
+    "Status": "Up 2 weeks (healthy)"
+  },
+  {
+    "Id": "2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b",
+    "Names": ["/watchtower"],
+    "Image": "containrrr/watchtower:latest",
+    "Created": 1729800000,
+    "Labels": {},
+    "State": "exited",
+    "Status": "Exited (1) 3 days ago"
+  },
+  {
+    "Id": "3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c",
+    "Names": ["/broken"],
+    "Image": "example/broken:1",
+    "Created": 1729700000,
+    "Labels": {},
+    "State": "dead",
+    "Status": "Dead"
+  },
+  {
+    "Id": "4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d",
+    "Names": ["/updater"],
+    "Image": "example/updater:2",
+    "Created": 1729600000,
+    "Labels": {},
+    "State": "restarting",
+    "Status": "Restarting (1) 5 seconds ago"
+  }
+]
