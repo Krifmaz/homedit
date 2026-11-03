@@ -1,0 +1,41 @@
+{
+  "Id": "3f4e8a1c9b2d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f",
+  "Created": "2024-10-27T03:33:20.123456789Z",
+  "Path": "/jellyfin/jellyfin",
+  "Args": [],
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 48213,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2024-10-30T08:12:45.918273645Z",
+    "FinishedAt": "2024-10-30T08:12:40.001122334Z",
+    "Health": {
+      "Status": "healthy",
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "Start": "2024-11-02T09:14:03.100000000Z",
+          "End": "2024-11-02T09:14:03.250000000Z",
+          "ExitCode": 0,
+          "Output": ""
+        }
+      ]
+    }
+  },
+  "Image": "sha256:1b2c3d4e5f60718293a4b5c6d7e8f9011b2c3d4e5f60718293a4b5c6d7e8f901",
+  "Name": "/jellyfin",
+  "RestartCount": 0,
+  "Driver": "overlay2",
+  "Platform": "linux",
+  "Config": {
+    "Hostname": "3f4e8a1c9b2d",
+    "Image": "jellyfin/jellyfin:10.10.1",
+    "Labels": {"homepage.group": "Media", "homepage.name": "Jellyfin"}
+  }
+}

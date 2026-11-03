@@ -13,6 +13,11 @@ pub mod arr;
 pub mod immich;
 pub mod jellyfin;
 pub mod plex;
+pub mod docker;
+pub mod portainer;
+pub mod proxmox;
+pub mod qbittorrent;
+pub mod sabnzbd;
 
 /// Every built-in widget.
 pub fn all() -> Vec<Arc<dyn Widget>> {
@@ -24,6 +29,11 @@ pub fn all() -> Vec<Arc<dyn Widget>> {
         Arc::new(jellyfin::Jellyfin),
         Arc::new(jellyfin::Emby),
         Arc::new(immich::Immich),
+        Arc::new(qbittorrent::QBittorrent),
+        Arc::new(sabnzbd::Sabnzbd),
+        Arc::new(proxmox::Proxmox),
+        Arc::new(portainer::Portainer),
+        Arc::new(docker::Docker),
     ]
 }
 
