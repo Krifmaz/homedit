@@ -1,0 +1,29 @@
+[package]
+name = "homedit-discovery"
+description = "Read-only Docker discovery for homedit: lists containers and turns gethomepage-compatible labels into service cards."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+homedit-core.workspace = true
+homedit-import.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+hyper = { workspace = true, features = ["server"] }
+tempfile.workspace = true
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
