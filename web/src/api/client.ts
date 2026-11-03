@@ -20,6 +20,14 @@ import type {
   WidgetData,
   WidgetSchema,
 } from "./types";
+import {
+  docFromWire,
+  docToWire,
+  historyFromWire,
+  statusEventFromWire,
+  statusFromWire,
+  toWireId,
+} from "./wire";
 
 /** Thrown when a save is rejected because the config changed on the server. */
 export class ConflictError extends Error {
@@ -176,26 +184,27 @@ export class HttpApi implements Api {
     this.csrf = me.csrfToken;
     return me;
   }
-  dashboard() {
-    return this.request<DashboardData>("/dashboard");
+  async dashboard() {
+    return docFromWire(await this.request<unknown>("/dashboard"));
   }
-  status() {
-    return this.request<StatusMap>("/status");
+  async status() {
+    return statusFromWire(await this.request<unknown>("/status"));
   }
   subscribeStatus(onEvent: (e: StatusEvent) => void, onConfig?: (version: string) => void) {
     if (typeof EventSource === "undefined") return () => {};
     const es = new EventSource(`${this.base}/events`);
     es.addEventListener("status", (msg) => {
       try {
-        onEvent(JSON.parse((msg as MessageEvent<string>).data) as StatusEvent);
+        const e = statusEventFromWire(JSON.parse((msg as MessageEvent<string>).data));
+        if (e) onEvent(e);
       } catch {
         /* ignore malformed events */
       }
     });
     es.addEventListener("config", (msg) => {
       try {
-        const { version } = JSON.parse((msg as MessageEvent<string>).data) as { version: string };
-        onConfig?.(version);
+        const { version } = JSON.parse((msg as MessageEvent<string>).data) as { version: unknown };
+        onConfig?.(String(version));
       } catch {
         /* ignore malformed events */
       }
@@ -214,32 +223,32 @@ export class HttpApi implements Api {
   testWidget(widget: WidgetConfig, serviceId?: string) {
     return this.request<TestResult>("/widgets/test", {
       method: "POST",
-      body: JSON.stringify({ ...widget, serviceId }),
+      body: JSON.stringify({ ...widget, serviceId: toWireId(serviceId) }),
     });
   }
-  config() {
-    return this.request<ConfigDoc>("/config");
+  async config() {
+    return docFromWire(await this.request<unknown>("/config"));
   }
   async saveConfig(doc: ConfigDoc) {
-    const res = await this.request<{ version: string }>("/config", {
+    const res = await this.request<{ version: string | number }>("/config", {
       method: "PUT",
       headers: { "If-Match": doc.version },
-      body: JSON.stringify(doc),
+      body: JSON.stringify(docToWire(doc)),
     });
-    return res.version;
+    return String(res.version);
   }
-  history() {
-    return this.request<HistoryEntry[]>("/history");
+  async history() {
+    return historyFromWire(await this.request<unknown>("/history"));
   }
-  historyVersion(version: string) {
-    return this.request<ConfigDoc>(`/history/${encodeURIComponent(version)}`);
+  async historyVersion(version: string) {
+    return docFromWire(await this.request<unknown>(`/history/${encodeURIComponent(version)}`));
   }
   async restore(version: string) {
-    const res = await this.request<{ version: string }>(
+    const res = await this.request<{ version: string | number }>(
       `/history/${encodeURIComponent(version)}/restore`,
       { method: "POST" },
     );
-    return res.version;
+    return String(res.version);
   }
   private async session(path: string, body: unknown): Promise<LoginResult> {
     const res = await this.request<LoginResult>(path, {
@@ -304,8 +313,10 @@ export function readInlineData(): InlineData | null {
   if (!el?.textContent) return null;
   try {
     const raw = JSON.parse(el.textContent) as Partial<InlineData> & Partial<DashboardData>;
-    if (raw.dashboard) return { dashboard: raw.dashboard, status: raw.status ?? {} };
-    if (raw.groups) return { dashboard: raw as DashboardData, status: {} };
+    if (!raw || typeof raw !== "object") return null;
+    if (raw.dashboard)
+      return { dashboard: docFromWire(raw.dashboard), status: statusFromWire(raw.status) };
+    if (raw.groups) return { dashboard: docFromWire(raw), status: {} };
     return null;
   } catch {
     return null;

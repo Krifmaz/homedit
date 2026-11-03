@@ -226,7 +226,12 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
     try {
       const version = await api.saveConfig(undo.present);
       dispatch({ type: "saved", version });
-      setView(await api.dashboard());
+      // Pick up ids the server assigned to new items, so later saves and
+      // stored secrets line up with them. Undo history is kept.
+      const [fresh, view] = await Promise.all([api.config(), api.dashboard()]);
+      dispatch({ type: "synced", doc: fresh });
+      setTarget((t) => (t && "groupId" in t ? null : t));
+      setView(view);
       setError(null);
     } catch (e) {
       fail(e);

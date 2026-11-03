@@ -30,7 +30,8 @@ export type UndoAction =
   | { type: "apply"; doc: ConfigDoc; coalesceKey?: string }
   | { type: "undo" }
   | { type: "redo" }
-  | { type: "saved"; version: string };
+  | { type: "saved"; version: string }
+  | { type: "synced"; doc: ConfigDoc };
 
 /** Creates the initial state for `doc`. */
 export function initUndo(doc: ConfigDoc): UndoState {
@@ -73,6 +74,9 @@ export function undoReducer(state: UndoState, action: UndoAction): UndoState {
         lastKey: null,
       };
     }
+    case "synced":
+      // The server's copy of what was just saved (with server-assigned ids).
+      return { ...state, present: action.doc, saved: action.doc, lastKey: null };
     case "saved": {
       const stamp = (d: ConfigDoc) => ({ ...d, version: action.version });
       const present = stamp(state.present);
