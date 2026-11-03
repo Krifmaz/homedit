@@ -420,3 +420,47 @@ async fn info_widget_data() {
     let (code, _) = call(&st, "GET", "/api/info/99999", None, None).await;
     assert_eq!(code, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn scan_schedule_round_trip() {
+    let (st, _d) = state().await;
+    let (code, body) = call(&st, "GET", "/api/scan/schedule", None, None).await;
+    assert_eq!(code, StatusCode::OK, "{body}");
+    let v: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["enabled"], false);
+    assert_eq!(v["request"]["ports"]["kind"], "catalogue");
+
+    let bad = json!({"enabled": true, "intervalHours": 6, "request": {"targets": []}});
+    let (code, _) = call(&st, "PUT", "/api/scan/schedule", Some(bad), None).await;
+    assert_eq!(code, StatusCode::UNPROCESSABLE_ENTITY);
+    let bad = json!({"enabled": false, "intervalHours": 0, "request": {"targets": []}});
+    let (code, _) = call(&st, "PUT", "/api/scan/schedule", Some(bad), None).await;
+    assert_eq!(code, StatusCode::UNPROCESSABLE_ENTITY);
+
+    let good = json!({"enabled": true, "intervalHours": 6,
+        "request": {"targets": ["10.9.8.0/30"], "ports": {"kind": "list", "ports": "80"}}});
+    let (code, body) = call(&st, "PUT", "/api/scan/schedule", Some(good), None).await;
+    assert_eq!(code, StatusCode::OK, "{body}");
+    let v: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["nextRunAt"], 0, "never ran, so it is due now: {v}");
+    let s = homedit::schedule::load(&st).await.unwrap();
+    assert!(s.enabled && s.interval_hours == 6 && s.request.targets.len() == 1);
+
+    // One tick starts the scan and pushes the next run out by the interval.
+    let id = homedit::schedule::tick(&st).await.unwrap();
+    assert!(id.is_some());
+    let s = homedit::schedule::load(&st).await.unwrap();
+    let last = s.last_run_at.unwrap();
+    assert!(!s.is_due(last + 6 * 3_600_000 - 1));
+}
+
+#[tokio::test]
+async fn api_docs_are_served() {
+    let (st, _d) = state().await;
+    let (code, yaml) = call(&st, "GET", "/api/openapi.yaml", None, None).await;
+    assert_eq!(code, StatusCode::OK);
+    assert!(yaml.starts_with("openapi: 3.1.0"));
+    let (code, html) = call(&st, "GET", "/api/docs", None, None).await;
+    assert_eq!(code, StatusCode::OK);
+    assert!(html.contains("<title>homedit API</title>"), "{html}");
+}

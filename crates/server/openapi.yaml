@@ -1,0 +1,678 @@
+openapi: 3.1.0
+info:
+  title: homedit API
+  version: VERSION
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+  description: |
+    JSON over HTTP, camelCase. Everything lives under `/api` apart from
+    `/healthz`, `/readyz`, `/metrics` and `/icons/custom/*`.
+
+    **Auth.** With auth turned on, the browser holds a session cookie from
+    `POST /api/auth/login` (or OIDC). Viewers can read the dashboard; admins
+    can also edit, scan, import and export. With auth turned off everyone is
+    an admin.
+
+    **CSRF.** Every request that changes something (POST, PUT, PATCH,
+    DELETE) must send the `X-CSRF-Token` header with the token from
+    `GET /api/me`.
+
+    **Errors** are `{"error": "readable message"}` with a fitting status:
+    400 bad input, 401 not signed in, 403 not allowed or bad CSRF token,
+    404 unknown id, 409 version conflict or a scan already running,
+    422 invalid content, 502 an upstream service failed.
+
+    **Secrets.** API keys and passwords in widget fields are stored
+    encrypted and never sent back. `GET /api/config` shows them as
+    `{"$secret":"set"}`; send that back to keep the value, a string to
+    replace it, or `null` to clear it.
+tags:
+  - name: session
+  - name: dashboard
+  - name: live
+  - name: widgets
+  - name: editing
+  - name: icons
+  - name: backup
+  - name: scanner
+  - name: users
+  - name: ops
+paths:
+  /api/me:
+    get:
+      tags: [session]
+      summary: Who is signed in, plus the CSRF token
+      responses:
+        "200":
+          description: The session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+  /api/auth/me:
+    get:
+      tags: [session]
+      summary: Same as /api/me
+      responses:
+        "200": { description: The session }
+  /api/auth/login:
+    post:
+      tags: [session]
+      summary: Sign in with a name and password
+      description: Rate limited per address. Sets the session cookie.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        "200": { description: Signed in }
+        "401": { description: Wrong name or password }
+        "429": { description: Too many attempts }
+  /api/auth/logout:
+    post:
+      tags: [session]
+      summary: Sign out
+      responses:
+        "200": { description: "Signed out: {ok, logoutUrl}" }
+  /api/auth/setup:
+    post:
+      tags: [session]
+      summary: Create the first admin (only while no user exists)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        "200": { description: Admin created and signed in }
+        "409": { description: Users already exist }
+  /api/auth/password:
+    post:
+      tags: [session]
+      summary: Change your own password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string }
+      responses:
+        "200": { description: Changed (a new session is started) }
+  /api/auth/oidc/login:
+    get:
+      tags: [session]
+      summary: Start an OpenID Connect sign-in (redirects to the provider)
+      responses:
+        "303": { description: Redirect to the provider }
+  /api/auth/oidc/callback:
+    get:
+      tags: [session]
+      summary: OpenID Connect redirect target
+      responses:
+        "303": { description: Signed in, redirect to the dashboard }
+  /api/auth/users:
+    get:
+      tags: [users]
+      summary: List users (admin)
+      responses:
+        "200": { description: The users }
+    post:
+      tags: [users]
+      summary: Create a user (admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, role]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                role: { type: string, enum: [viewer, admin] }
+      responses:
+        "201": { description: Created }
+  /api/auth/users/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    patch:
+      tags: [users]
+      summary: Change a user's role or password, or disable them (admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: { type: string, enum: [viewer, admin] }
+                password: { type: string }
+                disabled: { type: boolean }
+      responses:
+        "200": { description: Updated }
+    delete:
+      tags: [users]
+      summary: Delete a user (admin)
+      responses:
+        "204": { description: Deleted }
+  /api/dashboard:
+    get:
+      tags: [dashboard]
+      summary: The dashboard as viewers see it
+      description: |
+        Hidden groups are left out for viewers, and secret widget fields
+        are shown as `••••`. The same data is inlined into `index.html`
+        for the first paint.
+      responses:
+        "200":
+          description: The dashboard
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Doc" }
+  /api/status:
+    get:
+      tags: [live]
+      summary: Latest status and recent history of every checked service
+      responses:
+        "200":
+          description: Keyed by service id
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { $ref: "#/components/schemas/Status" }
+  /api/events:
+    get:
+      tags: [live]
+      summary: Live updates (server-sent events)
+      description: |
+        Events: `status` (one service's new sample), `config` (`{version}`,
+        the dashboard was saved; refetch it), and for admins `scan`
+        (`{id, data}` where `data.event` is `started`, `progress`,
+        `port_open`, `service`, `changes` (`{messages}`, what differs from
+        the previous scan) or `finished`).
+      responses:
+        "200":
+          description: An event stream
+          content:
+            text/event-stream: {}
+  /api/info/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [widgets]
+      summary: Data for one header (info) widget
+      description: |
+        `datetime` gives `{}`; `resources` gives
+        `{cpu, memUsed, memTotal, diskUsed, diskTotal}` (percent, bytes);
+        `openmeteo` gives `{tempC, condition, icon}`; `docker` gives
+        `{running, stopped}`. Cached per widget.
+      responses:
+        "200": { description: The widget's data }
+        "404": { description: No such widget }
+        "502": { description: The data source failed }
+  /api/widgets/catalog:
+    get:
+      tags: [widgets]
+      summary: Every service widget type with its fields
+      responses:
+        "200":
+          description: The catalogue
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CatalogEntry" }
+  /api/widgets/{id}/data:
+    parameters:
+      - { name: id, in: path, required: true, description: Service id, schema: { type: integer } }
+    get:
+      tags: [widgets]
+      summary: Live numbers for one service's widget
+      description: The server calls the service; API keys never reach the browser.
+      responses:
+        "200":
+          description: The numbers, or an `error` text
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WidgetData" }
+        "404": { description: No such service or no widget }
+  /api/widgets/test:
+    post:
+      tags: [widgets]
+      summary: Try a widget configuration against the service (admin)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, fields]
+              properties:
+                type: { type: string }
+                fields: { type: object }
+                serviceId:
+                  type: integer
+                  description: Use this service's stored secrets for `{"$secret":"set"}` values
+      responses:
+        "200":
+          description: The result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  message: { type: string }
+  /api/config:
+    get:
+      tags: [editing]
+      summary: The editable dashboard (admin)
+      description: Includes hidden groups; secrets shown as `{"$secret":"set"}`. The `ETag` is the version.
+      responses:
+        "200":
+          description: The config
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Doc" }
+    put:
+      tags: [editing]
+      summary: Save the whole dashboard (admin)
+      parameters:
+        - name: If-Match
+          in: header
+          description: The version you edited. A newer saved version gives 409.
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Doc" }
+      responses:
+        "200": { description: Saved; the new config with its version }
+        "409": { description: Someone saved in between }
+        "422": { description: Invalid content }
+  /api/history:
+    get:
+      tags: [editing]
+      summary: Saved versions, newest first (admin)
+      responses:
+        "200": { description: "[{version, createdAt, author, summary}]" }
+  /api/history/{version}:
+    parameters:
+      - { name: version, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [editing]
+      summary: One saved version (admin)
+      responses:
+        "200": { description: The config at that version }
+  /api/history/{version}/restore:
+    parameters:
+      - { name: version, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [editing]
+      summary: Save an old version as the newest one (admin)
+      responses:
+        "200": { description: Restored }
+  /api/icons:
+    get:
+      tags: [icons]
+      summary: Search icons (admin)
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        "200": { description: "[{name, source, url}]" }
+    post:
+      tags: [icons]
+      summary: Upload a custom icon (admin, multipart, at most 2 MB)
+      description: PNG, JPEG, SVG, WebP, GIF or ICO. Served from `/icons/custom/{name}`.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200": { description: The stored icon }
+  /api/import:
+    post:
+      tags: [backup]
+      summary: Replace the dashboard from uploaded files (admin, multipart)
+      description: |
+        Send gethomepage files (`services.yaml`, `bookmarks.yaml`,
+        `widgets.yaml`, `settings.yaml`, `docker.yaml`, `custom.css`; the file
+        name decides, the field name is ignored) or one `homedit.yaml`
+        from `/api/export`. At most 1 MB per file. The previous dashboard
+        stays in the history.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: array
+                  items: { type: string, format: binary }
+      responses:
+        "200":
+          description: Imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: integer }
+                  warnings:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        file: { type: string }
+                        path: { type: string }
+                        message: { type: string }
+        "422": { description: A file could not be read }
+  /api/export:
+    get:
+      tags: [backup]
+      summary: Download the dashboard as homedit.yaml (admin)
+      parameters:
+        - name: secrets
+          in: query
+          description: Include API keys and passwords in plain text
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: The file
+          content:
+            application/yaml: {}
+  /api/scan:
+    get:
+      tags: [scanner]
+      summary: The running or last scan (admin)
+      responses:
+        "200":
+          description: The job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScanJob" }
+    post:
+      tags: [scanner]
+      summary: Start a scan (admin)
+      description: |
+        Plain TCP connects, rate limited, private ranges only unless the
+        server allows more. Every scan is logged.
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScanRequest" }
+      responses:
+        "202":
+          description: Started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+        "400": { description: No targets, or a target outside the policy }
+        "409": { description: A scan is already running }
+  /api/scan/history:
+    get:
+      tags: [scanner]
+      summary: Stored scans, newest first (admin)
+      responses:
+        "200": { description: "[{id, startedAt, finishedAt, requestedBy, services}]" }
+  /api/scan/schedule:
+    get:
+      tags: [scanner]
+      summary: The rescan schedule (admin)
+      responses:
+        "200":
+          description: The schedule
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScanSchedule" }
+    put:
+      tags: [scanner]
+      summary: Change the rescan schedule (admin)
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScanSchedule" }
+      responses:
+        "200": { description: The saved schedule }
+        "422": { description: Interval out of range, or enabled without targets }
+  /api/openapi.yaml:
+    get:
+      tags: [ops]
+      summary: This document
+      responses:
+        "200": { description: OpenAPI 3.1 }
+  /api/docs:
+    get:
+      tags: [ops]
+      summary: This document as a readable page
+      responses:
+        "200": { description: HTML }
+  /healthz:
+    get:
+      tags: [ops]
+      summary: Liveness
+      responses:
+        "200": { description: Running }
+  /readyz:
+    get:
+      tags: [ops]
+      summary: Readiness (checks the database)
+      responses:
+        "200": { description: Ready }
+        "503": { description: Not ready }
+  /metrics:
+    get:
+      tags: [ops]
+      summary: Prometheus metrics
+      description: Needs `Authorization Bearer` with `HOMEDIT_METRICS_TOKEN` when that is set.
+      responses:
+        "200": { description: Text exposition format }
+components:
+  schemas:
+    Me:
+      type: object
+      properties:
+        user:
+          type: [object, "null"]
+          properties:
+            name: { type: string }
+        role: { type: string, enum: [viewer, admin] }
+        authEnabled: { type: boolean }
+        csrfToken: { type: string }
+    Doc:
+      type: object
+      properties:
+        settings:
+          type: object
+          properties:
+            title: { type: string }
+            theme: { type: string, enum: [light, dark, system] }
+            accent: { type: string }
+            background:
+              type: object
+              properties:
+                url: { type: string }
+                blur: { type: string }
+                opacity: { type: integer }
+            customCss: { type: string }
+            search:
+              type: object
+              properties:
+                provider: { type: string }
+                url: { type: string }
+        groups:
+          type: array
+          items: { $ref: "#/components/schemas/Group" }
+        bookmarks:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    name: { type: string }
+                    abbr: { type: string }
+                    icon: { type: string }
+                    href: { type: string }
+        infoWidgets:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              type: { type: string, examples: [clock, weather, resources, docker] }
+              options: { type: object }
+        version: { type: integer }
+    Group:
+      type: object
+      properties:
+        id: { type: integer, description: Absent for a new group }
+        name: { type: string }
+        icon: { type: string }
+        hidden: { type: boolean, description: Hidden from viewers }
+        layout:
+          type: object
+          properties:
+            columns: { type: integer }
+            style: { type: string, enum: [grid, row, column] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Service" }
+        groups:
+          type: array
+          items: { $ref: "#/components/schemas/Group" }
+    Service:
+      type: object
+      properties:
+        id: { type: integer, description: Absent for a new card }
+        name: { type: string }
+        icon: { type: string }
+        iconKind: { type: string, description: How the icon resolved (read only) }
+        href: { type: string }
+        description: { type: string }
+        check:
+          type: object
+          properties:
+            kind: { type: string, enum: [http, tcp] }
+            target: { type: string }
+        widget:
+          type: object
+          properties:
+            type: { type: string }
+            fields: { type: object }
+    Status:
+      type: object
+      properties:
+        up: { type: boolean }
+        code: { type: integer }
+        latencyMs: { type: integer }
+        checkedAt: { type: integer, description: ms since the epoch }
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              t: { type: integer }
+              up: { type: boolean }
+              ms: { type: integer }
+    CatalogEntry:
+      type: object
+      properties:
+        type: { type: string }
+        name: { type: string }
+        category: { type: string }
+        description: { type: string }
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string }
+              label: { type: string }
+              kind: { type: string, enum: [string, url, secret, number, bool, select] }
+              required: { type: boolean }
+              help: { type: string }
+              default: {}
+              options: { type: array, items: { type: string } }
+    WidgetData:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              value: {}
+              unit: { type: string }
+        items: { type: array, items: { type: object } }
+        error: { type: string }
+    ScanRequest:
+      type: object
+      required: [targets]
+      properties:
+        targets:
+          type: array
+          description: CIDR networks, addresses or hostnames
+          items: { type: string }
+          examples: [["192.168.1.0/24", "nas.lan"]]
+        ports:
+          description: Which ports to check (default `common`)
+          oneOf:
+            - type: object
+              properties:
+                kind: { type: string, enum: [common, catalogue, full] }
+            - type: object
+              properties:
+                kind: { type: string, const: list }
+                ports: { type: string, examples: ["80,443,8000-8100"] }
+        fingerprint: { type: boolean, default: true }
+    ScanJob:
+      type: object
+      properties:
+        id: { type: integer }
+        running: { type: boolean }
+        events: { type: array, items: { type: object } }
+        report: { type: object, description: Hosts with their open ports and identified apps }
+        suggestions:
+          type: object
+          description: A ready-made card per found service, keyed `ip:port`
+        diff:
+          type: object
+          description: Changes since the previous stored scan
+          properties:
+            appeared: { type: array, items: { type: object } }
+            disappeared: { type: array, items: { type: object } }
+            changed: { type: array, items: { type: object } }
+        error: { type: string }
+    ScanSchedule:
+      type: object
+      required: [enabled, intervalHours, request]
+      properties:
+        enabled: { type: boolean }
+        intervalHours: { type: integer, minimum: 1, maximum: 720 }
+        request: { $ref: "#/components/schemas/ScanRequest" }
+        lastRunAt: { type: integer, readOnly: true }
+        nextRunAt: { type: integer, readOnly: true }
