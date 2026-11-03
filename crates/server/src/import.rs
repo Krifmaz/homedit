@@ -6,7 +6,8 @@
 //!   (`services.yaml`, `bookmarks.yaml`, `widgets.yaml`, `settings.yaml`,
 //!   `docker.yaml`, `custom.css`) and replaces the dashboard with them. The
 //!   previous dashboard stays in the version history, so the import can be
-//!   undone with one click.
+//!   undone with one click. A `homedit.yaml` file from `GET /api/export`
+//!   is restored as is instead.
 //!
 //! `{{HOMEPAGE_VAR_*}}` and `{{HOMEPAGE_FILE_*}}` placeholders are resolved
 //! from the server's environment. Imported secrets are encrypted before
@@ -65,6 +66,7 @@ pub async fn upload(
 ) -> Result<Json<Imported>, ApiError> {
     let mut sources = ImportSources::default();
     let mut any = false;
+    let mut backup: Option<String> = None;
     while let Some(field) = form
         .next_field()
         .await
@@ -87,9 +89,30 @@ pub async fn upload(
         }
         let text = String::from_utf8(bytes.to_vec())
             .map_err(|_| ApiError::bad_request(format!("{name} is not UTF-8 text")))?;
-        if sources.set_by_name(&name, text) {
+        if name.eq_ignore_ascii_case("homedit.yaml") || name.eq_ignore_ascii_case("homedit.yml") {
+            backup = Some(text);
+        } else if sources.set_by_name(&name, text) {
             any = true;
         }
+    }
+    if let Some(text) = backup {
+        let mut dash = crate::export::from_yaml(&text)
+            .map_err(|e| ApiError::new(axum::http::StatusCode::UNPROCESSABLE_ENTITY, e))?;
+        secrets::seal(&mut dash, state.auth.secrets());
+        let (version, _) = state
+            .db
+            .save_dashboard(
+                &dash,
+                None,
+                Some(&admin.author()),
+                Some("restored homedit.yaml"),
+            )
+            .await?;
+        state.status.publish(LiveEvent::Config { version });
+        return Ok(Json(Imported {
+            version,
+            warnings: Vec::new(),
+        }));
     }
     if !any {
         return Err(ApiError::bad_request(

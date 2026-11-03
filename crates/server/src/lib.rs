@@ -16,8 +16,10 @@ pub mod assets;
 pub mod auth;
 pub mod discovery;
 pub mod error;
+pub mod export;
 pub mod icons;
 pub mod import;
+pub mod info;
 pub mod scan;
 pub mod secrets;
 pub mod status;
@@ -56,6 +58,8 @@ pub struct AppState {
     pub metrics: Metrics,
     /// The port scanner and its single running job.
     pub scans: Arc<scan::ScanJobs>,
+    /// Cache and CPU sampler for header (info) widgets.
+    pub info: Arc<info::InfoState>,
     /// Root of the data folder (database, uploads, secret key).
     pub data_dir: PathBuf,
 }
@@ -119,6 +123,7 @@ impl AppState {
             widget_ctx,
             metrics: Metrics::new(env!("CARGO_PKG_VERSION")),
             scans: Arc::new(scan::ScanJobs::from_env()?),
+            info: Arc::new(info::InfoState::default()),
             data_dir,
         };
         secrets::seal_stored(&state).await?;

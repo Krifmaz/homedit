@@ -324,3 +324,99 @@ async fn import_upload_replaces_dashboard() {
     let key = s.widget.as_ref().unwrap()["key"].as_str().unwrap();
     assert!(key.starts_with("enc:v1:"), "imported secret is encrypted");
 }
+
+async fn upload(st: &AppState, filename: &str, text: &str) -> (StatusCode, String) {
+    let (token, cookie) = csrf(st).await;
+    let boundary = "B0UND";
+    let body = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n\r\n{text}\r\n--{boundary}--\r\n"
+    );
+    let req = Request::post("/api/import")
+        .header("x-csrf-token", token)
+        .header(header::COOKIE, cookie)
+        .header(
+            header::CONTENT_TYPE,
+            format!("multipart/form-data; boundary={boundary}"),
+        )
+        .body(Body::from(body))
+        .unwrap();
+    let resp = app(st.clone()).oneshot(req).await.unwrap();
+    let status = resp.status();
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    (status, String::from_utf8_lossy(&bytes).into_owned())
+}
+
+#[tokio::test]
+async fn export_and_restore_round_trip() {
+    let (st, _d) = state().await;
+    let (code, plain) = call(&st, "GET", "/api/export", None, None).await;
+    assert_eq!(code, StatusCode::OK, "{plain}");
+    assert!(plain.contains("Sonarr") && !plain.contains("TOPSECRET") && !plain.contains("enc:"));
+    let (code, full) = call(&st, "GET", "/api/export?secrets=true", None, None).await;
+    assert_eq!(code, StatusCode::OK);
+    assert!(full.contains("TOPSECRET"), "{full}");
+
+    let edited = full.replace("Sonarr", "Sonarr 4K");
+    let (code, body) = upload(&st, "homedit.yaml", &edited).await;
+    assert_eq!(code, StatusCode::OK, "{body}");
+    let d = st.db.load_dashboard().await.unwrap();
+    let s = &d.groups[0].services[0];
+    assert_eq!(s.name, "Sonarr 4K");
+    let key = s.widget.as_ref().unwrap()["key"].as_str().unwrap();
+    assert!(key.starts_with("enc:v1:"), "restored secret is encrypted");
+
+    let (code, _) = upload(&st, "homedit.yaml", "groups: [1, 2").await;
+    assert_eq!(code, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn info_widget_data() {
+    let (st, _d) = state().await;
+    let mut d = st.db.load_dashboard().await.unwrap();
+    for kind in ["datetime", "resources", "openmeteo", "docker"] {
+        d.info_widgets.push(homedit_core::InfoWidget {
+            kind: kind.into(),
+            ..Default::default()
+        });
+    }
+    let v = st.db.current_version().await.unwrap();
+    let (_, d) = st.db.save_dashboard(&d, Some(v), None, None).await.unwrap();
+    let id = |k: &str| {
+        d.info_widgets
+            .iter()
+            .find(|w| w.kind == k)
+            .unwrap()
+            .id
+            .unwrap()
+    };
+
+    let (code, body) = call(
+        &st,
+        "GET",
+        &format!("/api/info/{}", id("datetime")),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!((code, body.as_str()), (StatusCode::OK, "{}"));
+    // No coordinates and no Docker host: both report a readable error.
+    for k in ["openmeteo", "docker"] {
+        let (code, body) = call(&st, "GET", &format!("/api/info/{}", id(k)), None, None).await;
+        assert_eq!(code, StatusCode::BAD_GATEWAY, "{k}: {body}");
+    }
+    if cfg!(target_os = "linux") {
+        let (code, body) = call(
+            &st,
+            "GET",
+            &format!("/api/info/{}", id("resources")),
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(code, StatusCode::OK, "{body}");
+        let v: Value = serde_json::from_str(&body).unwrap();
+        assert!(v["memTotal"].as_u64().unwrap() > 0, "{v}");
+    }
+    let (code, _) = call(&st, "GET", "/api/info/99999", None, None).await;
+    assert_eq!(code, StatusCode::NOT_FOUND);
+}
