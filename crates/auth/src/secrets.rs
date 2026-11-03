@@ -112,10 +112,10 @@ impl SecretBox {
     /// Reads the key from `HOMEDIT_SECRET_KEY`, or from the file named by
     /// `HOMEDIT_SECRET_KEY_FILE`.
     pub fn from_env() -> Result<Self, SecretError> {
-        if let Ok(k) = std::env::var(KEY_ENV) {
-            if !k.trim().is_empty() {
-                return Self::from_base64(&k);
-            }
+        if let Ok(k) = std::env::var(KEY_ENV)
+            && !k.trim().is_empty()
+        {
+            return Self::from_base64(&k);
         }
         if let Ok(path) = std::env::var(KEY_FILE_ENV) {
             let k = Zeroizing::new(std::fs::read_to_string(path)?);
@@ -378,11 +378,11 @@ pub fn encrypt_json_secrets(sb: &SecretBox, scope: &str, v: &mut Value) {
 /// right before a widget request). Fails if any value cannot be decrypted.
 pub fn decrypt_json_secrets(sb: &SecretBox, scope: &str, v: &mut Value) -> Result<(), SecretError> {
     walk_secrets(v, &mut Vec::new(), &mut |path, field| {
-        if let Value::String(s) = field {
-            if is_ciphertext(s) {
-                let secret = sb.decrypt(s, &ctx(scope, path))?;
-                *s = secret.expose().to_owned();
-            }
+        if let Value::String(s) = field
+            && is_ciphertext(s)
+        {
+            let secret = sb.decrypt(s, &ctx(scope, path))?;
+            *s = secret.expose().to_owned();
         }
         Ok(())
     })

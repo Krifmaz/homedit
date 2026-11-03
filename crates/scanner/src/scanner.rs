@@ -271,7 +271,7 @@ impl Scanner {
                     Ok(_) => {}
                     Err(e) => tracing::warn!(error = %e, "probe task failed"),
                 }
-                if done % step == 0 || done == total {
+                if done.is_multiple_of(step) || done == total {
                     emit.progress(done, total, open.len());
                 }
                 event

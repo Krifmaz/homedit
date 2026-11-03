@@ -195,15 +195,15 @@ impl AuthState {
             });
         }
 
-        if let Some(proxy_cfg) = &cfg.proxy {
-            if let Some(user) = crate::proxy::authenticate(proxy_cfg, &client, &parts.headers) {
-                let role = Some(user.role);
-                return Ok(Resolved {
-                    user: mk(Some(user), role, fallback_csrf, None),
-                    set_csrf_cookie,
-                    clear_session_cookie: false,
-                });
-            }
+        if let Some(proxy_cfg) = &cfg.proxy
+            && let Some(user) = crate::proxy::authenticate(proxy_cfg, &client, &parts.headers)
+        {
+            let role = Some(user.role);
+            return Ok(Resolved {
+                user: mk(Some(user), role, fallback_csrf, None),
+                set_csrf_cookie,
+                clear_session_cookie: false,
+            });
         }
 
         let mut clear_session_cookie = false;

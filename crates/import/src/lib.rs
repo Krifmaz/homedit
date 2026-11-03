@@ -175,10 +175,10 @@ pub fn import_dashboard(
     resolver: &dyn Resolver,
 ) -> Result<ImportReport, ImportError> {
     let mut report = import_sources(sources, resolver)?.into_report();
-    if let Some(css) = &sources.custom_css {
-        if !css.trim().is_empty() {
-            report.dashboard.settings.custom_css = Some(css.clone());
-        }
+    if let Some(css) = &sources.custom_css
+        && !css.trim().is_empty()
+    {
+        report.dashboard.settings.custom_css = Some(css.clone());
     }
     Ok(report)
 }

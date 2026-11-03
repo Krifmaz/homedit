@@ -57,10 +57,10 @@ async fn serve() -> anyhow::Result<()> {
         PathBuf::from(std::env::var("HOMEDIT_DATA_DIR").unwrap_or_else(|_| "/data".into()));
 
     let state = homedit::AppState::open(&data_dir).await?;
-    if let Ok(dir) = std::env::var("HOMEDIT_IMPORT_DIR") {
-        if let Err(e) = homedit::import::import_on_start(&state, std::path::Path::new(&dir)).await {
-            tracing::error!(error = %e, dir, "cannot import gethomepage config");
-        }
+    if let Ok(dir) = std::env::var("HOMEDIT_IMPORT_DIR")
+        && let Err(e) = homedit::import::import_on_start(&state, std::path::Path::new(&dir)).await
+    {
+        tracing::error!(error = %e, dir, "cannot import gethomepage config");
     }
     homedit::status::spawn_checker(state.clone());
     homedit::discovery::spawn(state.clone());

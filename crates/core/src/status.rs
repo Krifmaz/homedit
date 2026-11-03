@@ -33,12 +33,12 @@ impl StatusCheck {
     /// Returns `None` when the service asks for no check or the value cannot
     /// be parsed.
     pub fn for_service(service: &Service) -> Option<Self> {
-        if let Some(url) = service.site_monitor.as_deref().map(str::trim) {
-            if url::Url::parse(url).is_ok_and(|u| matches!(u.scheme(), "http" | "https")) {
-                return Some(Self::Http {
-                    url: url.to_owned(),
-                });
-            }
+        if let Some(url) = service.site_monitor.as_deref().map(str::trim)
+            && url::Url::parse(url).is_ok_and(|u| matches!(u.scheme(), "http" | "https"))
+        {
+            return Some(Self::Http {
+                url: url.to_owned(),
+            });
         }
         let ping = service.ping.as_deref()?.trim();
         parse_host_port(ping).map(|(host, port)| Self::Tcp { host, port })

@@ -106,10 +106,10 @@ impl IntoResponse for AuthError {
             Json(json!({ "error": self.code(), "message": message })),
         )
             .into_response();
-        if let AuthError::RateLimited(secs) = self {
-            if let Ok(v) = HeaderValue::from_str(&secs.to_string()) {
-                res.headers_mut().insert(header::RETRY_AFTER, v);
-            }
+        if let AuthError::RateLimited(secs) = self
+            && let Ok(v) = HeaderValue::from_str(&secs.to_string())
+        {
+            res.headers_mut().insert(header::RETRY_AFTER, v);
         }
         res
     }

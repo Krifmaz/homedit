@@ -74,12 +74,11 @@ pub(crate) fn parse_path(path: &str) -> Result<Vec<Step>, String> {
 /// boolean strings where it expects them).
 pub(crate) fn parse_value(raw: &str) -> Value {
     let trimmed = raw.trim();
-    if (trimmed.starts_with('[') && trimmed.ends_with(']'))
-        || (trimmed.starts_with('{') && trimmed.ends_with('}'))
+    if ((trimmed.starts_with('[') && trimmed.ends_with(']'))
+        || (trimmed.starts_with('{') && trimmed.ends_with('}')))
+        && let Ok(value) = serde_json::from_str(trimmed)
     {
-        if let Ok(value) = serde_json::from_str(trimmed) {
-            return value;
-        }
+        return value;
     }
     Value::String(raw.to_string())
 }

@@ -251,12 +251,12 @@ impl OidcProvider {
         // read directly for the non-standard groups claim.
         let mut groups = jwt_payload(&id_token.to_string())
             .and_then(|p| extract_groups(&p, &self.cfg.groups_claim));
-        if groups.is_none() {
-            if let Some(url) = &d.userinfo_url {
-                groups = self
-                    .userinfo_groups(url, token.access_token().secret(), &subject)
-                    .await;
-            }
+        if groups.is_none()
+            && let Some(url) = &d.userinfo_url
+        {
+            groups = self
+                .userinfo_groups(url, token.access_token().secret(), &subject)
+                .await;
         }
         Ok((
             OidcIdentity {
@@ -299,12 +299,11 @@ impl OidcProvider {
 
 /// See [`OidcProvider::role_for`].
 pub fn role_for(cfg: &OidcConfig, groups: &[String]) -> Result<Role, AuthError> {
-    if let Some(allowed) = &cfg.allowed_group {
-        if !groups.iter().any(|g| g == allowed)
-            && cfg.admin_group.as_ref().is_none_or(|a| !groups.contains(a))
-        {
-            return Err(AuthError::Forbidden);
-        }
+    if let Some(allowed) = &cfg.allowed_group
+        && !groups.iter().any(|g| g == allowed)
+        && cfg.admin_group.as_ref().is_none_or(|a| !groups.contains(a))
+    {
+        return Err(AuthError::Forbidden);
     }
     Ok(match &cfg.admin_group {
         Some(admin) if groups.iter().any(|g| g == admin) => Role::Admin,

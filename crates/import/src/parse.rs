@@ -250,10 +250,10 @@ fn service_group(ctx: &mut Ctx<'_>, name: String, body: Value) -> ServiceGroup {
 /// which produces the same field names from container labels.
 pub(crate) fn service(ctx: &mut Ctx<'_>, path: &str, name: String, mut fields: Object) -> Service {
     let mut widgets = Vec::new();
-    if let Some(widget) = fields.remove("widget") {
-        if let Some(widget) = service_widget(ctx, &format!("{path}/widget"), widget) {
-            widgets.push(widget);
-        }
+    if let Some(widget) = fields.remove("widget")
+        && let Some(widget) = service_widget(ctx, &format!("{path}/widget"), widget)
+    {
+        widgets.push(widget);
     }
     match fields.remove("widgets") {
         Some(Value::Array(items)) => {

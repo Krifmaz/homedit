@@ -234,15 +234,15 @@ fn authorized(headers: &HeaderMap, token: &str) -> bool {
 }
 
 async fn metrics_handler(State(state): State<OpsState>, headers: HeaderMap) -> Response {
-    if let Some(token) = &state.metrics_token {
-        if !authorized(&headers, token) {
-            return (
-                StatusCode::UNAUTHORIZED,
-                [(header::WWW_AUTHENTICATE, "Bearer")],
-                "metrics token required\n",
-            )
-                .into_response();
-        }
+    if let Some(token) = &state.metrics_token
+        && !authorized(&headers, token)
+    {
+        return (
+            StatusCode::UNAUTHORIZED,
+            [(header::WWW_AUTHENTICATE, "Bearer")],
+            "metrics token required\n",
+        )
+            .into_response();
     }
     (
         [

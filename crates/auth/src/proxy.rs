@@ -43,10 +43,10 @@ pub fn authenticate(
     {
         role = Role::Admin;
     }
-    if let Some(admin_group) = &cfg.admin_group {
-        if groups.into_iter().any(|g| g == admin_group) {
-            role = Role::Admin;
-        }
+    if let Some(admin_group) = &cfg.admin_group
+        && groups.into_iter().any(|g| g == admin_group)
+    {
+        role = Role::Admin;
     }
     Some(AuthUser {
         id: None,
