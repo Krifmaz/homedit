@@ -2,7 +2,8 @@
 //!
 //! Jellyfin is a fork of Emby and both still share the API used here, so
 //! [`Jellyfin`] and [`Emby`] are thin wrappers around the same code. Both
-//! authenticate with an `X-Emby-Token` header carrying an API key.
+//! authenticate with an API key, sent both as `X-Emby-Token` and as
+//! `Authorization: MediaBrowser Token="..."`.
 //!
 //! Endpoints used:
 //!
@@ -149,7 +150,12 @@ async fn get<T: DeserializeOwned>(
     path: &str,
 ) -> Result<T, WidgetError> {
     let key = cfg.require_str("key")?;
-    ctx.get_json(cfg, path, &[(TOKEN_HEADER, key)]).await
+    // Jellyfin 10.11+ prefers the `Authorization: MediaBrowser` scheme and
+    // can disable the legacy header; Emby only knows the legacy one. Both
+    // are sent so either server accepts the request.
+    let auth = format!("MediaBrowser Token=\"{key}\"");
+    ctx.get_json(cfg, path, &[(TOKEN_HEADER, key), ("Authorization", &auth)])
+        .await
 }
 
 fn schema(kind: &str, name: &str) -> WidgetSchema {
