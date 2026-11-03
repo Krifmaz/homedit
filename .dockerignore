@@ -1,0 +1,11 @@
+# Keep the build context small and free of local state.
+target/
+**/target/
+web/node_modules/
+data/
+*.db
+*.db-*
+.git/
+.github/
+*.md
+!README.md
