@@ -2,7 +2,7 @@
  * Test helpers for the editor forms: mounts a form inside an
  * {@link AppProvider} backed by {@link MockApi}, already in edit mode.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { useEffect, type ReactNode } from "react";
 import { AppProvider, useApp, type AppState } from "../../app/context";
 import type { Api } from "../../api/client";
@@ -38,6 +38,11 @@ export async function renderForm(form: ReactNode, api: Api = new MockApi({ liveE
     </AppProvider>,
   );
   await screen.findByRole("heading", { level: 2 });
+  // The probe is filled by a passive effect, which can run after the
+  // heading is already in the DOM on a slow machine; wait for it too.
+  await waitFor(() => {
+    if (!probe.app?.editing || !probe.app.doc) throw new Error("app not ready");
+  });
   return { ...result, api };
 }
 
