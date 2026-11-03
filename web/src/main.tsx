@@ -14,8 +14,14 @@ import "./styles.css";
 const mock = import.meta.env.VITE_MOCK === "1" || new URLSearchParams(location.search).has("mock");
 let api: Api;
 if (mock) {
-  const role = new URLSearchParams(location.search).get("role") === "viewer" ? "viewer" : "admin";
-  api = new MockApi({ role, latency: 150 });
+  const params = new URLSearchParams(location.search);
+  const role = params.get("role") === "viewer" ? "viewer" : "admin";
+  const auth = params.get("auth");
+  api = new MockApi({
+    role,
+    latency: 150,
+    auth: auth === "login" || auth === "setup" ? auth : "open",
+  });
   setIconResolver(mockIconUrl);
 } else {
   api = new HttpApi();

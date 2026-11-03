@@ -67,6 +67,11 @@ export function Toolbar() {
       <button type="button" className="btn" onClick={() => app.open({ kind: "history" })}>
         History
       </button>
+      {app.me?.authEnabled && (
+        <button type="button" className="btn" onClick={() => app.open({ kind: "users" })}>
+          Users
+        </button>
+      )}
       <span className="btn-row">
         <button
           type="button"

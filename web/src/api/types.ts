@@ -8,15 +8,54 @@
 /** A role a signed-in (or anonymous) viewer has. Only admins may edit. */
 export type Role = "viewer" | "admin";
 
+/** Sign-in methods the server offers. */
+export interface AuthMethods {
+  /** Username and password login. */
+  local: boolean;
+  /** Label of the OIDC button, or `null` when OIDC is off. */
+  oidc: string | null;
+  /** Trusted reverse-proxy headers. */
+  proxy: boolean;
+  /** Where to send the browser to log out of the proxy, if any. */
+  proxyLogoutUrl?: string | null;
+}
+
 /** Response of `GET /api/me`. */
 export interface Me {
   /** The signed-in user, or `null` when anonymous or auth is disabled. */
-  user: { name: string } | null;
-  /** Effective role for this session. */
-  role: Role;
+  user: { name: string; id?: string; source?: string } | null;
+  /**
+   * Effective role. `null` with `authEnabled` means the visitor must sign in
+   * before seeing anything.
+   */
+  role: Role | null;
   /** Whether any login method is configured on the server. */
   authEnabled: boolean;
   /** Token to send back in the `X-CSRF-Token` header on mutations. */
+  csrfToken: string;
+  /** No users exist yet: show the first-run admin setup. */
+  setupRequired?: boolean;
+  /** Available sign-in methods. */
+  methods?: AuthMethods;
+}
+
+/** A user account as returned by the auth API. */
+export interface UserAccount {
+  id: string;
+  username: string;
+  role: Role;
+  /** `local`, `oidc` or `proxy`. */
+  source: string;
+  disabled: boolean;
+  /** ISO 8601 timestamp. */
+  createdAt: string;
+  /** ISO 8601 timestamp, or `null` when never signed in. */
+  lastLoginAt: string | null;
+}
+
+/** Response of login, setup and password change. */
+export interface LoginResult {
+  user: UserAccount;
   csrfToken: string;
 }
 

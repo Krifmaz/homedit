@@ -6,6 +6,8 @@
  * is a single undo step and Cancel simply undoes it.
  */
 import { useApp } from "../app/context";
+import { PasswordForm } from "../auth/PasswordForm";
+import { UsersPanel } from "../auth/UsersPanel";
 import { BookmarkForm, BookmarkGroupForm } from "./forms/BookmarkForms";
 import { GroupForm } from "./forms/GroupForm";
 import { InfoWidgetsForm } from "./forms/InfoWidgetsForm";
@@ -42,6 +44,12 @@ export function Drawer() {
       break;
     case "history":
       body = <HistoryPanel onClose={close} />;
+      break;
+    case "users":
+      body = <UsersPanel onClose={close} />;
+      break;
+    case "password":
+      body = <PasswordForm onClose={close} />;
       break;
   }
   return (
