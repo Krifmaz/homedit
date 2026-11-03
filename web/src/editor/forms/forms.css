@@ -1,0 +1,87 @@
+/* Styles specific to the editor drawer forms. */
+
+.editor-form .form-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px 0;
+  margin: 0 0 14px;
+}
+
+.editor-form .form-section > legend {
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0 4px;
+  color: var(--muted);
+}
+
+.editor-form input[type="text"],
+.editor-form input[type="url"],
+.editor-form input[type="number"],
+.editor-form input[type="password"],
+.editor-form input[type="search"],
+.editor-form select {
+  min-width: 0;
+}
+
+.secret-row,
+.icon-picker-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.secret-row > input,
+.icon-picker-row > input {
+  flex: 1;
+}
+
+.icon-picker-preview {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.icon-choice {
+  justify-content: center;
+  padding: 6px;
+}
+
+.icon-choice.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.test-result {
+  margin: 8px 0 14px;
+  font-size: 0.85rem;
+}
+
+.test-result.ok {
+  color: var(--up);
+}
+
+.test-result.fail {
+  color: var(--down);
+}
+
+.info-widget-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.info-widget-item .btn-row {
+  margin-bottom: 10px;
+}
