@@ -33,7 +33,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use crate::auth::{RequireAdmin, RequireViewer};
 use crate::status::LiveEvent;
 use crate::view::{self, DocView, Mode};
-use crate::{ApiError, AppState, icons, import, scan, secrets, widgets};
+use crate::{ApiError, AppState, export, icons, import, info, scan, secrets, widgets};
 
 /// Number of history entries returned by `/api/history`.
 pub const HISTORY_LIMIT: i64 = 200;
@@ -54,6 +54,8 @@ pub fn router() -> Router<AppState> {
         .route("/widgets/test", post(widgets::test))
         .route("/widgets/{id}/data", get(widgets::data))
         .route("/import", post(import::upload))
+        .route("/export", get(export::download))
+        .route("/info/{id}", get(info::data))
         .route("/scan", get(scan::current).post(scan::start))
         .route("/scan/history", get(scan::history))
         .fallback(|| async { ApiError::not_found() })
