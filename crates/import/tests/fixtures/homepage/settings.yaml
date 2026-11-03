@@ -1,0 +1,19 @@
+title: My Lab
+theme: dark
+color: slate
+headerStyle: boxed
+cardBlur: md
+background:
+  image: https://example.com/bg.jpg
+  blur: sm
+  opacity: 50
+providers:
+  openweathermap: "{{HOMEPAGE_VAR_OWM}}"
+layout:
+  Media:
+    style: row
+    columns: 4
+  Downloads:
+    style: column
+    header: false
+    initiallyCollapsed: true

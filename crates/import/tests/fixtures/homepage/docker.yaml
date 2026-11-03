@@ -1,0 +1,8 @@
+local:
+  socket: /var/run/docker.sock
+remote:
+  host: 192.168.1.20
+  port: 2375
+  swarm: true
+broken:
+  nothing: here

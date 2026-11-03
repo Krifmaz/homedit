@@ -1,0 +1,52 @@
+---
+# Example gethomepage services.yaml written for homedit's import tests.
+- Media:
+    - Plex:
+        icon: plex.png
+        href: http://plex.lan:32400/web
+        description: Movies and TV
+        server: local
+        container: plex
+        widget:
+          type: plex
+          url: http://plex.lan:32400
+          key: "{{HOMEPAGE_VAR_PLEX_TOKEN}}"
+    - Jellyfin:
+        icon: sh-jellyfin
+        href: https://jellyfin.lan
+        siteMonitor: https://jellyfin.lan
+        weight: 10
+        widgets:
+          - type: jellyfin
+            url: https://jellyfin.lan
+            key: "{{HOMEPAGE_FILE_JELLYFIN_KEY}}"
+            enableBlocks: true
+          - type: customapi
+            url: https://jellyfin.lan/System/Info/Public
+            mappings:
+              - field: Version
+                label: Version
+
+- Downloads:
+    - Arr:
+        - Sonarr:
+            href: http://sonarr.lan:8989
+            ping: sonarr.lan
+            widget:
+              type: sonarr
+              url: http://sonarr.lan:8989
+              key: abc123
+        - Radarr:
+            href: http://radarr.lan:7878
+            showStats: "true"
+    - qBittorrent:
+        href: http://qbit.lan:8080
+        widget:
+          type: qbittorrent
+          url: http://qbit.lan:8080
+          username: admin
+          password: secret
+    - Broken: "just a string"
+    - Bare:
+
+- not a group

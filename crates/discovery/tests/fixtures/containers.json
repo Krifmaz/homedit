@@ -1,0 +1,65 @@
+[
+  {
+    "Id": "8dfafdbc3a40aaaa1111222233334444555566667777888899990000aaaabbbb",
+    "Names": ["/sonarr"],
+    "Image": "lscr.io/linuxserver/sonarr:latest",
+    "ImageID": "sha256:1111",
+    "Command": "/init",
+    "Created": 1761900000,
+    "State": "running",
+    "Status": "Up 3 hours (healthy)",
+    "Ports": [{"PrivatePort": 8989, "PublicPort": 8989, "Type": "tcp"}],
+    "Labels": {
+      "homepage.group": "Media",
+      "homepage.name": "Sonarr",
+      "homepage.icon": "sonarr.png",
+      "homepage.href": "http://sonarr.lan:8989",
+      "homepage.description": "TV shows",
+      "homepage.weight": "2",
+      "homepage.widget.type": "sonarr",
+      "homepage.widget.url": "http://sonarr:8989",
+      "homepage.widget.key": "abc123",
+      "homepage.widget.fields": "[\"wanted\",\"queued\"]",
+      "com.docker.compose.project": "media"
+    },
+    "NetworkSettings": {"Networks": {"media": {"IPAddress": "172.18.0.2"}}}
+  },
+  {
+    "Id": "9e0a000000000000000000000000000000000000000000000000000000000001",
+    "Names": ["/radarr"],
+    "Image": "lscr.io/linuxserver/radarr:latest",
+    "State": "running",
+    "Status": "Up 3 hours",
+    "Labels": {
+      "homepage.group": "Media",
+      "homepage.name": "Radarr",
+      "homepage.weight": "1",
+      "homepage.server": "nas",
+      "homepage.instance.internal.href": "http://radarr:7878"
+    }
+  },
+  {
+    "Id": "aa00000000000000000000000000000000000000000000000000000000000002",
+    "Names": ["/old-plex"],
+    "Image": "plexinc/pms-docker",
+    "State": "exited",
+    "Status": "Exited (0) 2 days ago",
+    "Labels": {"homepage.group": "Media", "homepage.name": "Plex"}
+  },
+  {
+    "Id": "bb00000000000000000000000000000000000000000000000000000000000003",
+    "Names": ["/half-labelled"],
+    "Image": "nginx",
+    "State": "running",
+    "Status": "Up 1 minute",
+    "Labels": {"homepage.name": "No group"}
+  },
+  {
+    "Id": "cc00000000000000000000000000000000000000000000000000000000000004",
+    "Names": ["/postgres"],
+    "Image": "postgres:17",
+    "State": "running",
+    "Status": "Up 5 days",
+    "Labels": {}
+  }
+]

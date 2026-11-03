@@ -13,8 +13,12 @@ repository = "https://github.com/Krifmaz/homedit"
 anyhow = "1"
 axum = { version = "0.8", features = ["multipart"] }
 futures = "0.3"
+http = "1"
 http-body-util = "0.1"
+hyper = { version = "1", features = ["client", "server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 mime_guess = "2"
+prometheus-client = "0.25"
 regex = "1"
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "http2"] }
 rust-embed = { version = "8", features = ["mime-guess", "include-exclude"] }
@@ -33,6 +37,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2"
 homedit-core = { path = "crates/core" }
 homedit-db = { path = "crates/db" }
+homedit-discovery = { path = "crates/discovery" }
+homedit-import = { path = "crates/import" }
+homedit-ops = { path = "crates/ops" }
 
 [profile.release]
 lto = true
