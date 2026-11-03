@@ -17,6 +17,7 @@ import type {
   Me,
   ScanJob,
   ScanRequest,
+  ScanSchedule,
   ServiceSuggestion,
   StatusEvent,
   StatusMap,
@@ -476,7 +477,42 @@ export class MockApi implements Api {
     await this.wait();
     return clone(this.statusMap);
   }
-  subscribeStatus(onEvent: (e: StatusEvent) => void) {
+  private scanListener?: (messages: string[]) => void;
+  private lastHosts: HostResult[] | null = null;
+  private schedule: ScanSchedule = {
+    enabled: false,
+    intervalHours: 24,
+    request: { targets: [], ports: { kind: "catalogue" }, fingerprint: true },
+    lastRunAt: null,
+    nextRunAt: null,
+  };
+
+  async scanSchedule() {
+    await this.wait();
+    return clone(this.schedule);
+  }
+  async saveScanSchedule(s: ScanSchedule) {
+    await this.wait();
+    if (s.intervalHours < 1 || s.intervalHours > 720) {
+      throw new ApiError(422, "intervalHours must be between 1 and 720", "unprocessable");
+    }
+    if (s.enabled && s.request.targets.length === 0) {
+      throw new ApiError(422, "add at least one target before enabling rescans", "unprocessable");
+    }
+    this.schedule = {
+      ...clone(s),
+      lastRunAt: this.schedule.lastRunAt ?? null,
+      nextRunAt: s.enabled ? Date.now() + s.intervalHours * 3_600_000 : null,
+    };
+    return clone(this.schedule);
+  }
+
+  subscribeStatus(
+    onEvent: (e: StatusEvent) => void,
+    _onConfig?: (version: string) => void,
+    onScanChanges?: (messages: string[]) => void,
+  ) {
+    this.scanListener = onScanChanges;
     if (!this.opts.liveEvents) return () => {};
     const timer = setInterval(() => {
       const ids = Object.keys(this.statusMap);
@@ -729,6 +765,48 @@ export class MockApi implements Api {
         },
         suggestions,
       };
+      // Every scan after the first reports what changed: Postgres went away
+      // and Home Assistant appeared.
+      if (this.lastHosts) {
+        const ha = {
+          port: 8123,
+          source: "scan" as const,
+          http: { scheme: "http" as const, status: 200, title: "Home Assistant" },
+          app: {
+            id: "home-assistant",
+            name: "Home Assistant",
+            widget: null,
+            icon: "home-assistant",
+            version: null,
+            confidence: 90,
+          },
+          on_dashboard: false,
+        };
+        hosts[1]!.services = [hosts[1]!.services[0]!, ha];
+        suggestions["192.168.1.30:8123"] = {
+          name: "Home Assistant",
+          href: "http://192.168.1.30:8123/",
+          icon: "home-assistant.png",
+          app_id: "home-assistant",
+        };
+        delete suggestions["192.168.1.30:5432"];
+        this.scan.diff = {
+          appeared: [{ ip: "192.168.1.30", hostname: null, service: ha }],
+          disappeared: [
+            {
+              ip: "192.168.1.30",
+              hostname: null,
+              service: { port: 5432, source: "scan", http: null, app: null, on_dashboard: false },
+            },
+          ],
+          changed: [],
+        };
+        this.scanListener?.([
+          "New: Home Assistant at 192.168.1.30:8123",
+          "Gone: port 5432 on 192.168.1.30",
+        ]);
+      }
+      this.lastHosts = hosts;
     };
     const tick = (done: number) => {
       if (this.scan.id !== id) return;

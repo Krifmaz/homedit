@@ -6,7 +6,7 @@
  * plain TCP connects, rate limited and logged on the server.
  */
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import type { PortSet, ScanJob } from "../api/types";
+import type { PortSet, ScanJob, ScanRequest, ScanSchedule } from "../api/types";
 import { useApp } from "../app/context";
 import { loginErrorMessage } from "../auth/LoginPage";
 import { allGroups, newId, upsertGroup, upsertService } from "../editor/ops";
@@ -17,6 +17,30 @@ import {
   suggestionToService,
   type FoundService,
 } from "./suggest";
+
+/** Human text for a rescan interval in hours. Exported for tests. */
+export function intervalLabel(hours: number): string {
+  if (hours % 168 === 0) return hours === 168 ? "week" : `${hours / 168} weeks`;
+  if (hours % 24 === 0) return hours === 24 ? "day" : `${hours / 24} days`;
+  return hours === 1 ? "hour" : `${hours} hours`;
+}
+
+/**
+ * "Last run … Next run …" text. A schedule that never ran is due right away
+ * (the server sends `nextRunAt: 0`). Exported for tests.
+ */
+export function scheduleTimes(s: ScanSchedule, now: number): string {
+  const parts: string[] = [];
+  if (s.lastRunAt) parts.push(`Last run ${new Date(s.lastRunAt).toLocaleString()}.`);
+  if (s.enabled && s.nextRunAt !== undefined && s.nextRunAt !== null) {
+    parts.push(
+      s.nextRunAt <= now
+        ? "Next run within a minute."
+        : `Next run ${new Date(s.nextRunAt).toLocaleString()}.`,
+    );
+  }
+  return parts.join(" ");
+}
 
 /** Poll interval while a scan runs. */
 const POLL_MS = 1000;
@@ -55,17 +79,63 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
     return () => clearInterval(t);
   }, [running, refresh]);
 
+  const [schedule, setSchedule] = useState<ScanSchedule | null>(null);
+  const [scheduleMsg, setScheduleMsg] = useState<string | null>(null);
+  /** When the schedule was last read or saved, for "next run" wording. */
+  const [scheduleAt, setScheduleAt] = useState(() => Date.now());
+
+  useEffect(() => {
+    let alive = true;
+    api.scanSchedule().then(
+      (s) => {
+        if (!alive) return;
+        setSchedule(s);
+        // Start from the scheduled request, so the form shows what rescans scan.
+        if (s.request.targets.length > 0) {
+          setTargets(s.request.targets.join("\n"));
+          setPortKind(s.request.ports.kind);
+          if (s.request.ports.kind === "list") setPortList(s.request.ports.ports);
+          setFingerprint(s.request.fingerprint);
+        }
+      },
+      () => {
+        /* older servers have no schedule; the section stays hidden */
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [api]);
+
+  /** The scan request the form describes. */
+  const currentRequest = (): ScanRequest => ({
+    targets: parseTargets(targets),
+    ports: portKind === "list" ? { kind: "list", ports: portList } : { kind: portKind },
+    fingerprint,
+  });
+
+  const saveSchedule = async (next: Partial<ScanSchedule>) => {
+    if (!schedule) return;
+    setScheduleMsg(null);
+    try {
+      const saved = await api.saveScanSchedule({ ...schedule, request: currentRequest(), ...next });
+      setSchedule(saved);
+      setScheduleAt(Date.now());
+      setScheduleMsg("Schedule saved.");
+    } catch (err) {
+      setScheduleMsg(loginErrorMessage(err));
+    }
+  };
+
   const start = async (e: FormEvent) => {
     e.preventDefault();
-    const list = parseTargets(targets);
-    if (list.length === 0) return;
+    const req = currentRequest();
+    if (req.targets.length === 0) return;
     if (portKind === "full" && !window.confirm("Scanning all 65,535 ports is slow. Continue?"))
       return;
     setError(null);
     try {
-      const ports: PortSet =
-        portKind === "list" ? { kind: "list", ports: portList } : { kind: portKind };
-      await api.startScan({ targets: list, ports, fingerprint });
+      await api.startScan(req);
       await refresh();
     } catch (err) {
       setError(loginErrorMessage(err));
@@ -172,6 +242,54 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
+      {job?.diff &&
+        !running &&
+        job.diff.appeared.length + job.diff.disappeared.length + job.diff.changed.length > 0 && (
+          <section className="scan-results" aria-label="Changes since the last scan">
+            <h3>Since the last scan</h3>
+            <ul className="scan-list scan-diff">
+              {job.diff.appeared.map((c) => {
+                const f = found.find((x) => x.key === `${c.ip}:${c.service.port}`);
+                return (
+                  <li key={`a-${c.ip}:${c.service.port}`} className="appeared">
+                    <strong>{f?.name ?? c.service.app?.name ?? `Port ${c.service.port}`}</strong>
+                    <span className="field-help">
+                      New on {c.hostname || c.ip}:{c.service.port}
+                    </span>
+                    {f?.suggestion && !f.onDashboard && (
+                      <button type="button" className="btn" onClick={() => add(f)}>
+                        + Add to dashboard
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+              {job.diff.disappeared.map((c) => (
+                <li key={`d-${c.ip}:${c.service.port}`} className="disappeared">
+                  <strong>
+                    {c.service.app?.name ?? c.service.http?.title ?? `Port ${c.service.port}`}
+                  </strong>
+                  <span className="field-help">
+                    No longer answers on {c.hostname || c.ip}:{c.service.port}
+                    {c.service.on_dashboard && " (it has a card on the dashboard)"}
+                  </span>
+                </li>
+              ))}
+              {job.diff.changed.map((c) => (
+                <li key={`c-${c.ip}:${c.service.port}`}>
+                  <strong>
+                    {c.service.app?.name ?? c.service.http?.title ?? `Port ${c.service.port}`}
+                  </strong>
+                  <span className="field-help">
+                    Changed on {c.hostname || c.ip}:{c.service.port}
+                    {c.service.app?.version && ` (now v${c.service.app.version})`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
       {job?.report && !running && (
         <section className="scan-results" aria-label="Scan results">
           <h3>
@@ -236,6 +354,56 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {schedule && (
+        <section className="scan-schedule" aria-label="Rescan schedule">
+          <h3 className="panel-h3">Rescan automatically</h3>
+          <p className="field-help">
+            Rescans use the networks and ports above and tell admins what appeared or disappeared.
+          </p>
+          <div className="field field-inline">
+            <input
+              id="sched-on"
+              type="checkbox"
+              checked={schedule.enabled}
+              onChange={(e) => setSchedule({ ...schedule, enabled: e.target.checked })}
+            />
+            <label htmlFor="sched-on">Rescan on a schedule</label>
+          </div>
+          <div className="field">
+            <label htmlFor="sched-every">Every</label>
+            <select
+              id="sched-every"
+              value={schedule.intervalHours}
+              onChange={(e) => setSchedule({ ...schedule, intervalHours: Number(e.target.value) })}
+            >
+              {[...new Set([1, 6, 12, 24, 72, 168, 720, schedule.intervalHours])]
+                .sort((a, b) => a - b)
+                .map((h) => (
+                  <option key={h} value={h}>
+                    {intervalLabel(h)}
+                  </option>
+                ))}
+            </select>
+          </div>
+          {(schedule.lastRunAt || schedule.enabled) && (
+            <p className="field-help">{scheduleTimes(schedule, scheduleAt)}</p>
+          )}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void saveSchedule({})}
+            disabled={schedule.enabled && parseTargets(targets).length === 0}
+          >
+            Save schedule
+          </button>
+          {scheduleMsg && (
+            <p className="field-help" role="status">
+              {scheduleMsg}
+            </p>
+          )}
         </section>
       )}
 

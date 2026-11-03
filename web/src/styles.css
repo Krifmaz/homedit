@@ -787,3 +787,59 @@ a.card:hover {
   padding: 4px 0;
   border-bottom: 1px solid var(--border);
 }
+
+/* ---------- notices ---------- */
+
+.notices {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 40;
+  width: min(360px, calc(100vw - 32px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
+  padding: 12px 14px;
+}
+
+.notices-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notices ul {
+  margin: 8px 0 10px;
+  padding-left: 18px;
+  font-size: 0.9rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.scan-diff li.appeared strong::before {
+  content: "+ ";
+  color: var(--up);
+}
+
+.scan-diff li.disappeared {
+  opacity: 0.75;
+}
+
+.scan-diff li.disappeared strong::before {
+  content: "− ";
+  color: var(--down);
+}
+
+.scan-schedule {
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+  padding-top: 4px;
+}
+
+/* Keep the notice clear of the editor drawer on the right. */
+.app.with-drawer ~ .notices {
+  right: auto;
+  left: 16px;
+}

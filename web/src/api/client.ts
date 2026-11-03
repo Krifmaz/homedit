@@ -17,6 +17,7 @@ import type {
   Role,
   ScanJob,
   ScanRequest,
+  ScanSchedule,
   StatusEvent,
   StatusMap,
   TestResult,
@@ -91,6 +92,7 @@ export interface Api {
   subscribeStatus(
     onEvent: (e: StatusEvent) => void,
     onConfig?: (version: string) => void,
+    onScanChanges?: (messages: string[]) => void,
   ): () => void;
   /** Live stats for the widget of a service. */
   widgetData(serviceId: string): Promise<WidgetData>;
@@ -142,6 +144,10 @@ export interface Api {
    * or a `homedit.yaml` backup. The file name decides how each is read.
    */
   importFiles(files: File[]): Promise<ImportResult>;
+  /** The rescan schedule (admin). */
+  scanSchedule(): Promise<ScanSchedule>;
+  /** Save the rescan schedule (admin); returns it with the next run time. */
+  saveScanSchedule(s: ScanSchedule): Promise<ScanSchedule>;
   /** URL that downloads the config as YAML, optionally with secrets. */
   exportUrl(withSecrets: boolean): string;
   /** Search built-in and uploaded icons. */
@@ -241,7 +247,11 @@ export class HttpApi implements Api {
   async status() {
     return statusFromWire(await this.request<unknown>("/status"));
   }
-  subscribeStatus(onEvent: (e: StatusEvent) => void, onConfig?: (version: string) => void) {
+  subscribeStatus(
+    onEvent: (e: StatusEvent) => void,
+    onConfig?: (version: string) => void,
+    onScanChanges?: (messages: string[]) => void,
+  ) {
     if (typeof EventSource === "undefined") return () => {};
     const es = new EventSource(`${this.base}/events`);
     es.addEventListener("status", (msg) => {
@@ -256,6 +266,18 @@ export class HttpApi implements Api {
       try {
         const { version } = JSON.parse((msg as MessageEvent<string>).data) as { version: unknown };
         onConfig?.(String(version));
+      } catch {
+        /* ignore malformed events */
+      }
+    });
+    es.addEventListener("scan", (msg) => {
+      try {
+        const { data } = JSON.parse((msg as MessageEvent<string>).data) as {
+          data?: { event?: string; messages?: unknown };
+        };
+        if (data?.event === "changes" && Array.isArray(data.messages)) {
+          onScanChanges?.(data.messages.filter((m): m is string => typeof m === "string"));
+        }
       } catch {
         /* ignore malformed events */
       }
@@ -357,6 +379,16 @@ export class HttpApi implements Api {
       body,
     });
     return { version: String(res.version), warnings: res.warnings ?? [] };
+  }
+  scanSchedule() {
+    return this.request<ScanSchedule>("/scan/schedule");
+  }
+  saveScanSchedule(sch: ScanSchedule) {
+    const { enabled, intervalHours, request } = sch;
+    return this.request<ScanSchedule>("/scan/schedule", {
+      method: "PUT",
+      body: JSON.stringify({ enabled, intervalHours, request }),
+    });
   }
   exportUrl(withSecrets: boolean) {
     return `${this.base}/export?secrets=${withSecrets}`;
