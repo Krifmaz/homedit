@@ -1,0 +1,51 @@
+# cargo-deny configuration: run with `cargo deny check`.
+#
+# homedit is Apache-2.0, so every dependency must use a permissive licence
+# that can be redistributed in the binary and the Docker image. No GPL.
+
+[graph]
+all-features = false
+
+[advisories]
+version = 2
+yanked = "deny"
+ignore = [
+  # serde_yaml_ng depends on unsafe-libyaml, which is archived but has no
+  # known vulnerability. Revisit when a maintained YAML backend is chosen.
+  { id = "RUSTSEC-2024-0449", reason = "unmaintained, no known vulnerability; only parses admin-supplied config" },
+]
+
+[licenses]
+version = 2
+confidence-threshold = 0.9
+allow = [
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "MIT",
+  "MIT-0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "0BSD",
+  "BSL-1.0",
+  "CC0-1.0",
+  "Unicode-3.0",
+  "Unlicense",
+  "CDLA-Permissive-2.0",
+  "OpenSSL",
+  # File-level copyleft only; compatible with distributing an Apache-2.0
+  # binary as long as MPL files stay MPL.
+  "MPL-2.0",
+]
+
+[bans]
+multiple-versions = "allow"
+# Internal crates use path dependencies, which cargo-deny counts as
+# wildcards; registry crates are still checked by [sources] below.
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
