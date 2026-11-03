@@ -1,0 +1,4 @@
+{"id": 1, "indexers": [
+  {"indexerId": 1, "indexerName": "Example Indexer", "averageResponseTime": 412, "numberOfQueries": 1200, "numberOfGrabs": 12, "numberOfRssQueries": 300, "numberOfAuthQueries": 0, "numberOfFailedQueries": 4, "numberOfFailedGrabs": 1, "numberOfFailedRssQueries": 0, "numberOfFailedAuthQueries": 0},
+  {"indexerId": 2, "indexerName": "Disabled Indexer", "averageResponseTime": 800, "numberOfQueries": 90, "numberOfGrabs": 3, "numberOfFailedQueries": 2, "numberOfFailedGrabs": 0}
+], "userAgents": [], "hosts": []}

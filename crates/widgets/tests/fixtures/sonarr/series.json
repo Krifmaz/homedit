@@ -1,0 +1,4 @@
+[
+  {"id": 1, "title": "Example Show", "monitored": true, "status": "continuing", "statistics": {"episodeFileCount": 20, "episodeCount": 24, "percentOfEpisodes": 83.3}},
+  {"id": 2, "title": "Another Show", "monitored": false, "status": "ended", "statistics": {"episodeFileCount": 10, "episodeCount": 10, "percentOfEpisodes": 100.0}}
+]

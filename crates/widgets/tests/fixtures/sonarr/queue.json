@@ -1,0 +1,2 @@
+{"page": 1, "pageSize": 1, "sortKey": "timeleft", "sortDirection": "ascending", "totalRecords": 3,
+ "records": [{"seriesId": 1, "episodeId": 120, "size": 1500000000, "title": "Example.Show.S02E03.1080p", "sizeleft": 500000000, "timeleft": "00:04:10", "status": "downloading", "trackedDownloadStatus": "ok", "protocol": "torrent", "downloadClient": "qBittorrent", "id": 9}]}
