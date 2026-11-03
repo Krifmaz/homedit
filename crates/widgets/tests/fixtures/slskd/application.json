@@ -1,0 +1,10 @@
+{
+  "version": {"full": "0.24.1.0+a1b2c3d", "current": "0.24.1", "latest": "0.24.2", "isUpdateAvailable": true, "isCanary": false, "isDevelopment": false},
+  "pendingReconnect": false,
+  "pendingRestart": false,
+  "server": {"address": "vps.slsknet.org:2271", "ipEndPoint": "208.76.170.59:2271", "state": "Connected, LoggedIn", "isConnected": true, "isLoggedIn": true, "isTransitioning": false},
+  "user": {"username": "homelab", "privileges": {"isPrivileged": false, "privilegesRemaining": 0}, "statistics": {"averageSpeed": 1200000, "directoryCount": 1530, "fileCount": 48213, "uploadCount": 412}},
+  "distributedNetwork": {"canAcceptChildren": true, "childLimit": 25, "children": [], "hasParent": true, "isBranchRoot": false, "branchLevel": 3, "branchRoot": "someone", "parent": "someone"},
+  "shares": {"scanPending": false, "scanning": false, "faulted": false, "cancelled": false, "scanProgress": 1, "directories": 1530, "files": 48213},
+  "rooms": []
+}

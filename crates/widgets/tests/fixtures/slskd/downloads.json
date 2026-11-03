@@ -1,0 +1,14 @@
+[
+  {"username": "peer_one", "directories": [
+    {"directory": "@@abcde\\Music\\Example Artist\\Album", "fileCount": 3, "bytes": 98000000, "files": [
+      {"id": "0f8b2c64-1d7e-4a6b-9c0e-6d2a1b3c4d5e", "username": "peer_one", "direction": "Download", "filename": "@@abcde\\Music\\Example Artist\\Album\\01 - Opening.flac", "size": 32000000, "startOffset": 0, "state": "InProgress", "requestedAt": "2026-11-03T20:01:12.53", "enqueuedAt": "2026-11-03T20:01:13.10", "startedAt": "2026-11-03T20:01:14.00", "bytesTransferred": 16000000, "averageSpeed": 1048576, "bytesRemaining": 16000000, "percentComplete": 50.0},
+      {"id": "1a9c3d75-2e8f-4b7c-8d1f-7e3b2c4d5e6f", "username": "peer_one", "direction": "Download", "filename": "@@abcde\\Music\\Example Artist\\Album\\02 - Second.flac", "size": 33000000, "startOffset": 0, "state": "Queued, Remotely", "requestedAt": "2026-11-03T20:01:12.53", "bytesTransferred": 0, "averageSpeed": 0, "bytesRemaining": 33000000, "percentComplete": 0},
+      {"id": "2b0d4e86-3f9a-4c8d-9e2a-8f4c3d5e6f70", "username": "peer_one", "direction": "Download", "filename": "@@abcde\\Music\\Example Artist\\Album\\00 - Intro.flac", "size": 33000000, "startOffset": 0, "state": "Completed, Succeeded", "requestedAt": "2026-11-03T19:58:00.00", "endedAt": "2026-11-03T20:00:40.00", "bytesTransferred": 33000000, "averageSpeed": 900000, "bytesRemaining": 0, "percentComplete": 100}
+    ]}
+  ]},
+  {"username": "peer_two", "directories": [
+    {"directory": "Shared/Podcasts", "fileCount": 1, "bytes": 52000000, "files": [
+      {"id": "3c1e5f97-4a0b-4d9e-8f3b-9a5d4e6f7081", "username": "peer_two", "direction": "Download", "filename": "Shared/Podcasts/episode-12.mp3", "size": 52000000, "startOffset": 0, "state": "InProgress", "bytesTransferred": 5200000, "averageSpeed": 524288, "bytesRemaining": 46800000, "percentComplete": 10.0}
+    ]}
+  ]}
+]

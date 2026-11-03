@@ -36,15 +36,20 @@ All requests go through `WidgetContext`:
 | --- | --- | --- |
 | `plex` | Plex | `key` (X-Plex-Token) |
 | `jellyfin`, `emby` | Jellyfin, Emby | `key` |
+| `audiobookshelf` | Audiobookshelf | `key` (API token) |
 | `immich` | Immich | `key` (admin), `version` |
 | `sonarr`, `radarr`, `prowlarr` | *arr apps | `key` |
+| `jellystat` | Jellystat | `key`, `days` (default 30) |
+| `lidarr` | Lidarr | `key` |
 | `qbittorrent` | qBittorrent | `username`, `password` (optional) |
+| `slskd` | slskd (Soulseek) | `key` |
 | `sabnzbd` | SABnzbd | `key` |
 | `proxmox` | Proxmox VE | `username` (token id, `user@realm!id`), `password` (token secret), `node`, `insecure_tls` |
 | `portainer` | Portainer | `key`, `env` |
 | `docker` | Docker Engine API over HTTP (e.g. a read-only socket proxy) | `container` (optional) |
 | `pihole` | Pi-hole v6 and v5 | `key`, `version` |
 | `adguard` | AdGuard Home | `username`, `password` |
+| `homeassistant` | Home Assistant | `key` (long-lived token), `custom` (optional `state`/`template` entries) |
 | `uptimekuma` | Uptime Kuma status page | `slug` |
 | `overseerr`, `jellyseerr`, `seerr` | Seerr family | `key` |
 | `customapi` | Any JSON API | `method`, `headers`, `body`, `key`, `key_header`, `mappings` |
