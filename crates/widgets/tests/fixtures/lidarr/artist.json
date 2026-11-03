@@ -1,0 +1,4 @@
+[
+  {"id": 1, "artistName": "Example Artist", "foreignArtistId": "a74b1b7f-71a5-4011-9441-d0b5e4122711", "monitored": true, "status": "continuing", "statistics": {"albumCount": 9, "trackFileCount": 98, "trackCount": 120, "totalTrackCount": 140, "sizeOnDisk": 2400000000, "percentOfTracks": 81.6}},
+  {"id": 2, "artistName": "Second Artist", "foreignArtistId": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3", "monitored": false, "status": "ended", "statistics": {"albumCount": 3, "trackFileCount": 30, "trackCount": 30, "totalTrackCount": 30, "sizeOnDisk": 700000000, "percentOfTracks": 100.0}}
+]

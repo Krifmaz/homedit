@@ -11,10 +11,13 @@ use crate::widget::Widget;
 
 pub mod adguard;
 pub mod arr;
+pub mod audiobookshelf;
 pub mod customapi;
 pub mod docker;
+pub mod homeassistant;
 pub mod immich;
 pub mod jellyfin;
+pub mod jellystat;
 pub mod pihole;
 pub mod plex;
 pub mod portainer;
@@ -22,6 +25,7 @@ pub mod proxmox;
 pub mod qbittorrent;
 pub mod sabnzbd;
 pub mod seerr;
+pub mod slskd;
 pub mod uptimekuma;
 
 /// Every built-in widget.
@@ -30,21 +34,26 @@ pub fn all() -> Vec<Arc<dyn Widget>> {
         Arc::new(arr::Sonarr),
         Arc::new(arr::Radarr),
         Arc::new(arr::Prowlarr),
+        Arc::new(arr::Lidarr),
         Arc::new(plex::Plex),
         Arc::new(jellyfin::Jellyfin),
         Arc::new(jellyfin::Emby),
+        Arc::new(jellystat::Jellystat),
         Arc::new(immich::Immich),
         Arc::new(qbittorrent::QBittorrent),
         Arc::new(sabnzbd::Sabnzbd),
+        Arc::new(slskd::Slskd),
         Arc::new(proxmox::Proxmox),
         Arc::new(portainer::Portainer),
         Arc::new(docker::Docker),
         Arc::new(pihole::PiHole),
         Arc::new(adguard::AdGuard),
         Arc::new(uptimekuma::UptimeKuma),
+        Arc::new(homeassistant::HomeAssistant),
         Arc::new(seerr::Overseerr),
         Arc::new(seerr::Jellyseerr),
         Arc::new(seerr::Seerr),
+        Arc::new(audiobookshelf::Audiobookshelf),
         Arc::new(customapi::CustomApi),
     ]
 }

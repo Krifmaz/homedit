@@ -1,0 +1,4 @@
+{"libraries": [
+  {"id": "lib_c1u6t4p45c35rf0nzd", "name": "Audiobooks", "folders": [{"id": "fol_bev1zuxhb0j0s1wehr", "fullPath": "/audiobooks", "libraryId": "lib_c1u6t4p45c35rf0nzd"}], "displayOrder": 1, "icon": "audiobookshelf", "mediaType": "book", "provider": "audible", "settings": {"coverAspectRatio": 1, "disableWatcher": false}, "createdAt": 1719700000000, "lastUpdate": 1761900000000},
+  {"id": "lib_p9w2a7nq0k3m1x8yzt", "name": "Podcasts", "folders": [{"id": "fol_k2m9q1w7e3r5t8y0ua", "fullPath": "/podcasts", "libraryId": "lib_p9w2a7nq0k3m1x8yzt"}], "displayOrder": 2, "icon": "podcast", "mediaType": "podcast", "provider": "itunes", "settings": {"coverAspectRatio": 1, "disableWatcher": false}, "createdAt": 1719700000000, "lastUpdate": 1761900000000}
+]}

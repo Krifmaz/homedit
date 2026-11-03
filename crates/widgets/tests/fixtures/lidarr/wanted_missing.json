@@ -1,0 +1,2 @@
+{"page": 1, "pageSize": 1, "sortKey": "releaseDate", "sortDirection": "descending", "totalRecords": 14,
+ "records": [{"id": 31, "title": "Example Album", "artistId": 1, "monitored": true, "albumType": "Album", "releaseDate": "2026-09-12T00:00:00Z"}]}

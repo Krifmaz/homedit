@@ -281,6 +281,63 @@ impl Widget for Prowlarr {
     }
 }
 
+// ---------------------------------------------------------------- Lidarr
+
+/// Lidarr: missing albums, download queue and artist count.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Lidarr;
+
+/// Parses Lidarr's artist list, missing list and queue status into widget
+/// data.
+pub fn parse_lidarr(
+    artists: &[serde_json::Value],
+    missing: &Paged,
+    queue: &QueueStatus,
+) -> WidgetData {
+    WidgetData::new(vec![
+        Stat::count("wanted", "Wanted", missing.total_records),
+        Stat::count("queued", "Queued", queue.total_count),
+        Stat::count("artists", "Artists", artists.len() as u64),
+    ])
+}
+
+#[async_trait]
+impl Widget for Lidarr {
+    fn kind(&self) -> &'static str {
+        "lidarr"
+    }
+
+    fn schema(&self) -> WidgetSchema {
+        WidgetSchema::new(
+            "lidarr",
+            "Lidarr",
+            "Missing albums, queue and artist count.",
+        )
+        .field(api_key_field(KEY_HELP))
+    }
+
+    async fn fetch(
+        &self,
+        ctx: &WidgetContext,
+        cfg: &WidgetConfig,
+    ) -> Result<WidgetData, WidgetError> {
+        let (artists, missing, queue) = tokio::try_join!(
+            get::<Vec<serde_json::Value>>(ctx, cfg, "/api/v1/artist"),
+            get::<Paged>(ctx, cfg, "/api/v1/wanted/missing?page=1&pageSize=1"),
+            get::<QueueStatus>(ctx, cfg, "/api/v1/queue/status"),
+        )?;
+        Ok(parse_lidarr(&artists, &missing, &queue))
+    }
+
+    async fn test_connection(
+        &self,
+        ctx: &WidgetContext,
+        cfg: &WidgetConfig,
+    ) -> Result<String, WidgetError> {
+        status(ctx, cfg, "/api/v1").await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,5 +387,47 @@ mod tests {
         assert_eq!(num(&d, "grabs"), 15.0);
         assert_eq!(num(&d, "queries"), 1290.0);
         assert_eq!(num(&d, "failures"), 7.0);
+    }
+
+    #[test]
+    fn lidarr_parses_recorded_responses() {
+        let artists: Vec<serde_json::Value> =
+            serde_json::from_value(fixture("lidarr/artist.json")).unwrap();
+        let missing: Paged = serde_json::from_value(fixture("lidarr/wanted_missing.json")).unwrap();
+        let queue: QueueStatus =
+            serde_json::from_value(fixture("lidarr/queue_status.json")).unwrap();
+        let d = parse_lidarr(&artists, &missing, &queue);
+        assert_eq!(num(&d, "artists"), 2.0);
+        assert_eq!(num(&d, "wanted"), 14.0);
+        assert_eq!(num(&d, "queued"), 2.0);
+    }
+
+    #[tokio::test]
+    async fn lidarr_fetches_with_api_key() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        for (p, f) in [
+            ("/api/v1/artist", "lidarr/artist.json"),
+            ("/api/v1/wanted/missing", "lidarr/wanted_missing.json"),
+            ("/api/v1/queue/status", "lidarr/queue_status.json"),
+        ] {
+            Mock::given(method("GET"))
+                .and(path(p))
+                .and(header("X-Api-Key", "lid"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(fixture(f)))
+                .mount(&server)
+                .await;
+        }
+        let ctx = WidgetContext::with_defaults().unwrap();
+        let cfg = WidgetConfig::default()
+            .with("url", server.uri())
+            .with("key", "lid");
+        let d = Lidarr.fetch(&ctx, &cfg).await.unwrap();
+        assert_eq!(num(&d, "queued"), 2.0);
+        let bad = WidgetConfig::default()
+            .with("url", server.uri())
+            .with("key", "nope");
+        assert!(Lidarr.fetch(&ctx, &bad).await.is_err());
     }
 }

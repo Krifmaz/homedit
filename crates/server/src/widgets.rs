@@ -63,14 +63,15 @@ pub struct CatalogEntry {
 /// Picker category of a widget type.
 pub fn category(kind: &str) -> &'static str {
     match kind {
-        "plex" | "jellyfin" | "emby" | "immich" => "Media",
-        "sonarr" | "radarr" | "prowlarr" | "overseerr" | "jellyseerr" | "seerr" => {
+        "plex" | "jellyfin" | "emby" | "immich" | "audiobookshelf" | "jellystat" => "Media",
+        "sonarr" | "radarr" | "lidarr" | "prowlarr" | "overseerr" | "jellyseerr" | "seerr" => {
             "Media management"
         }
-        "qbittorrent" | "sabnzbd" => "Downloads",
+        "qbittorrent" | "sabnzbd" | "slskd" => "Downloads",
         "proxmox" | "portainer" | "docker" => "Infrastructure",
         "pihole" | "adguard" => "Network",
         "uptimekuma" => "Monitoring",
+        "homeassistant" => "Home automation",
         _ => "Other",
     }
 }

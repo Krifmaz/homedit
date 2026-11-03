@@ -1,0 +1,8 @@
+[
+  {"username": "peer_three", "directories": [
+    {"directory": "Music\\Mine", "fileCount": 2, "bytes": 60000000, "files": [
+      {"id": "4d2f6a08-5b1c-4e0f-9a4c-0b6e5f708192", "username": "peer_three", "direction": "Upload", "filename": "Music\\Mine\\track.flac", "size": 30000000, "state": "Queued, Locally", "bytesTransferred": 0, "averageSpeed": 0, "percentComplete": 0},
+      {"id": "5e3a7b19-6c2d-4f1a-8b5d-1c7f60819203", "username": "peer_three", "direction": "Upload", "filename": "Music\\Mine\\other.flac", "size": 30000000, "state": "Completed, Errored", "bytesTransferred": 1000, "averageSpeed": 0, "percentComplete": 0}
+    ]}
+  ]}
+]
