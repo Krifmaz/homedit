@@ -109,6 +109,22 @@ writes them in plain text so the file restores on a server with a different
 (the Import button in the editor). Secrets are encrypted again on the way in,
 and the previous dashboard stays in the version history.
 
+## Scheduled rescans
+
+An admin can have the App finder rescan on a schedule:
+`PUT /api/scan/schedule` with `{"enabled": true, "intervalHours": 24,
+"request": {"targets": ["192.168.1.0/24"], "ports": {"kind": "catalogue"}}}`
+(1 to 720 hours). Scheduled scans follow the same policy, rate limit and
+audit log as manual ones, are recorded as requested by `schedule`, and never
+start while another scan runs. After every scan the server compares the
+result with the previous one and logs and sends what appeared, disappeared
+or changed (a `changes` scan event, and `diff` in `GET /api/scan`).
+
+## API
+
+Every endpoint is described in OpenAPI 3.1 at `/api/openapi.yaml`, and as a
+readable page at `/api/docs` that works offline.
+
 ## Header widgets
 
 The strip above the groups (gethomepage's `widgets.yaml`) is filled by

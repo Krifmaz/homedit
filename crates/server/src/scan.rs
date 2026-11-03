@@ -8,6 +8,11 @@
 //!   or not, plus a ready-made card suggestion for each.
 //! * `GET /api/scan/history` lists stored reports, newest first.
 //!
+//! Each finished scan is compared with the previous stored one. The
+//! changes (`diff`: services that appeared, disappeared or changed) go into
+//! the job and, when there are any, out as a `changes` scan event with one
+//! readable line per change. Scheduled rescans live in [`crate::schedule`].
+//!
 //! Policy comes from the environment: `HOMEDIT_SCAN_ALLOW_PUBLIC=true`
 //! allows non-private targets, `HOMEDIT_SCAN_CONCURRENCY` and
 //! `HOMEDIT_SCAN_RATE` (connects per second) tune the load. Scans are plain
@@ -19,7 +24,7 @@ use std::sync::Mutex;
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
-use scanner::{ScanEvent, ScanPolicy, ScanReport, ScanRequest, Scanner};
+use scanner::{ScanDiff, ScanEvent, ScanPolicy, ScanReport, ScanRequest, Scanner};
 use serde::Serialize;
 use serde_json::Value;
 use sqlx::Row;
@@ -47,6 +52,8 @@ pub struct Job {
     pub suggestions: serde_json::Map<String, Value>,
     /// Error text when the scan failed.
     pub error: Option<String>,
+    /// Changes since the previous stored scan (absent for the first one).
+    pub diff: Option<ScanDiff>,
 }
 
 /// The scanner and its job slot.
@@ -108,10 +115,22 @@ pub async fn start(
     State(state): State<AppState>,
     Json(mut req): Json<ScanRequest>,
 ) -> Result<(StatusCode, Json<Started>), ApiError> {
+    req.requested_by = Some(admin.author());
+    let id = begin(&state, req)?;
+    Ok((StatusCode::ACCEPTED, Json(Started { id })))
+}
+
+/// Whether a scan is running now.
+pub fn is_running(state: &AppState) -> bool {
+    state.scans.job.lock().expect("scan lock poisoned").running
+}
+
+/// Starts `req` in the background and returns its job number, or `409` if
+/// a scan is already running. Used by `POST /api/scan` and the scheduler.
+pub fn begin(state: &AppState, req: ScanRequest) -> Result<u64, ApiError> {
     if req.targets.is_empty() {
         return Err(ApiError::bad_request("add at least one target"));
     }
-    req.requested_by = Some(admin.author());
     let id = {
         let mut job = state.scans.job.lock().expect("scan lock poisoned");
         if job.running {
@@ -130,7 +149,7 @@ pub async fn start(
     };
     let st = state.clone();
     tokio::spawn(async move { run(st, id, req).await });
-    Ok((StatusCode::ACCEPTED, Json(Started { id })))
+    Ok(id)
 }
 
 async fn run(state: AppState, id: u64, req: ScanRequest) {
@@ -182,6 +201,20 @@ async fn run(state: AppState, id: u64, req: ScanRequest) {
                 }
             }
             state.metrics.record_scan("ok");
+            if let Some(prev) = latest(&state).await {
+                let d = scanner::diff(&prev, &report, scanner::Catalogue::builtin());
+                if !d.is_empty() {
+                    let messages = d.messages();
+                    for m in &messages {
+                        tracing::info!(target: scanner::AUDIT_TARGET, "scan change: {m}");
+                    }
+                    state.status.publish(LiveEvent::Scan {
+                        id,
+                        data: serde_json::json!({ "event": "changes", "messages": messages }),
+                    });
+                }
+                out.diff = Some(d);
+            }
             if let Err(e) = store(&state, &report).await {
                 tracing::warn!(error = %e, "cannot store scan report");
             }
@@ -197,6 +230,16 @@ async fn run(state: AppState, id: u64, req: ScanRequest) {
         id,
         data: serde_json::json!({ "event": "finished" }),
     });
+}
+
+/// The newest stored report.
+pub async fn latest(state: &AppState) -> Option<ScanReport> {
+    let text: String =
+        sqlx::query_scalar("SELECT report FROM scan_reports ORDER BY id DESC LIMIT 1")
+            .fetch_optional(state.db.pool())
+            .await
+            .ok()??;
+    serde_json::from_str(&text).ok()
 }
 
 async fn store(state: &AppState, report: &ScanReport) -> anyhow::Result<()> {
