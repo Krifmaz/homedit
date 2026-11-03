@@ -100,6 +100,29 @@ Point the importer at an existing gethomepage config folder. It reads
 environment, and keeps unknown keys so nothing is lost. Entries it cannot read
 are skipped and listed as warnings instead of failing the whole import.
 
+## Export and backup
+
+`GET /api/export` (admin) downloads the whole dashboard as `homedit.yaml`.
+API keys and passwords are left out unless you add `?secrets=true`, which
+writes them in plain text so the file restores on a server with a different
+`HOMEDIT_SECRET_KEY`. Restore by uploading `homedit.yaml` to `POST /api/import`
+(the Import button in the editor). Secrets are encrypted again on the way in,
+and the previous dashboard stays in the version history.
+
+## Header widgets
+
+The strip above the groups (gethomepage's `widgets.yaml`) is filled by
+`GET /api/info/{id}`:
+
+| Kind         | Shows                               | Options                          | Cache  |
+|--------------|-------------------------------------|----------------------------------|--------|
+| `datetime`   | Clock (rendered in the browser)     | gethomepage `format`             | –      |
+| `resources`  | CPU, memory and disk of the server  | `disk` (path, default `/`)       | 5 s    |
+| `openmeteo`  | Temperature and conditions          | `latitude`, `longitude`          | 10 min |
+| `docker`     | Running and stopped containers      | uses the configured Docker hosts | 15 s   |
+
+Weather comes from Open-Meteo (no API key), requested by the server.
+
 ## Docker discovery
 
 homedit reads containers through the Docker API and adds a card for every
