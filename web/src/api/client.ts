@@ -46,10 +46,14 @@ export interface Api {
   /** Latest status of every checked service. */
   status(): Promise<StatusMap>;
   /**
-   * Subscribe to live status updates.
+   * Subscribe to live updates: status changes, and config changes (a save or
+   * restore elsewhere) with the new version.
    * @returns a function that closes the subscription.
    */
-  subscribeStatus(onEvent: (e: StatusEvent) => void): () => void;
+  subscribeStatus(
+    onEvent: (e: StatusEvent) => void,
+    onConfig?: (version: string) => void,
+  ): () => void;
   /** Live stats for the widget of a service. */
   widgetData(serviceId: string): Promise<WidgetData>;
   /** Payload of an info widget (weather, resources, docker). */
@@ -91,7 +95,12 @@ export function setIconResolver(fn: IconResolver): void {
 /** Turns an icon reference from the config into a URL the browser can load. */
 export function iconUrl(ref: string | undefined): string | undefined {
   if (!ref) return undefined;
-  if (/^(https?:)?\/\//.test(ref) || ref.startsWith("/") || ref.startsWith("data:") || ref.startsWith("blob:")) {
+  if (
+    /^(https?:)?\/\//.test(ref) ||
+    ref.startsWith("/") ||
+    ref.startsWith("data:") ||
+    ref.startsWith("blob:")
+  ) {
     return ref;
   }
   return resolveIcon(ref);
@@ -132,12 +141,20 @@ export class HttpApi implements Api {
   status() {
     return this.request<StatusMap>("/status");
   }
-  subscribeStatus(onEvent: (e: StatusEvent) => void) {
+  subscribeStatus(onEvent: (e: StatusEvent) => void, onConfig?: (version: string) => void) {
     if (typeof EventSource === "undefined") return () => {};
     const es = new EventSource(`${this.base}/events`);
     es.addEventListener("status", (msg) => {
       try {
         onEvent(JSON.parse((msg as MessageEvent<string>).data) as StatusEvent);
+      } catch {
+        /* ignore malformed events */
+      }
+    });
+    es.addEventListener("config", (msg) => {
+      try {
+        const { version } = JSON.parse((msg as MessageEvent<string>).data) as { version: string };
+        onConfig?.(version);
       } catch {
         /* ignore malformed events */
       }
@@ -193,12 +210,24 @@ export class HttpApi implements Api {
   }
 }
 
-/** Reads the dashboard data the server inlined into `index.html`, if any. */
-export function readInlineData(): DashboardData | null {
+/** Data the server inlines into `index.html` for the first paint. */
+export interface InlineData {
+  dashboard: DashboardData;
+  status: StatusMap;
+}
+
+/**
+ * Reads the data the server inlined into `index.html`, if any. Accepts both
+ * `{dashboard, status}` and a bare dashboard object.
+ */
+export function readInlineData(): InlineData | null {
   const el = document.getElementById("homedit-data");
   if (!el?.textContent) return null;
   try {
-    return JSON.parse(el.textContent) as DashboardData;
+    const raw = JSON.parse(el.textContent) as Partial<InlineData> & Partial<DashboardData>;
+    if (raw.dashboard) return { dashboard: raw.dashboard, status: raw.status ?? {} };
+    if (raw.groups) return { dashboard: raw as DashboardData, status: {} };
+    return null;
   } catch {
     return null;
   }

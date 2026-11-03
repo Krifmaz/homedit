@@ -535,7 +535,23 @@ a.card:hover {
   display: flex;
   gap: 2px;
   background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.card:hover .edit-actions,
+.card:focus-within .edit-actions,
+:focus-visible > .card .edit-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .edit-actions {
+    opacity: 1;
+  }
 }
 
 .drag-handle {
@@ -602,4 +618,23 @@ a.card:hover {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+.subgroups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+}
+
+.group-head h3 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.group-icon {
+  border-radius: 4px;
+  object-fit: contain;
 }

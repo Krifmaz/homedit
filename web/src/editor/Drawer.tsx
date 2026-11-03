@@ -30,7 +30,9 @@ export function Drawer() {
       body = <BookmarkGroupForm groupId={target.groupId} onClose={close} />;
       break;
     case "bookmark":
-      body = <BookmarkForm groupId={target.groupId} bookmarkId={target.bookmarkId} onClose={close} />;
+      body = (
+        <BookmarkForm groupId={target.groupId} bookmarkId={target.bookmarkId} onClose={close} />
+      );
       break;
     case "infoWidgets":
       body = <InfoWidgetsForm onClose={close} />;

@@ -1,0 +1,112 @@
+/* Info widget strip and service widget styles (complements styles.css). */
+
+.info-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.info-main,
+.info-clock-time {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.info-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.info-loading,
+.info-error {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.info-error {
+  color: var(--down);
+  cursor: help;
+}
+
+.info-count.is-up {
+  color: var(--up);
+}
+
+.info-count.is-down {
+  color: var(--down);
+}
+
+.info-resources {
+  gap: 3px;
+}
+
+.info-meter-row {
+  display: grid;
+  grid-template-columns: 2.6em 64px auto;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.info-meter-label {
+  font-weight: 600;
+}
+
+.info-meter {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.info-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.info-meter.is-high .info-meter-fill {
+  background: var(--down);
+}
+
+.service-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-unit {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.stat-skeleton {
+  animation: stat-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes stat-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-skeleton {
+    animation: none;
+  }
+}
+
+.widget-error {
+  font-size: 0.75rem;
+  color: var(--down);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

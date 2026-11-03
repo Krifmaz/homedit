@@ -29,13 +29,23 @@ export function initials(name: string): string {
 }
 
 /** An icon image, a tinted mask, or an initials tile. */
-export function Icon({ icon, kind = "image", name, size = 36, className = "card-icon" }: IconProps) {
+export function Icon({
+  icon,
+  kind = "image",
+  name,
+  size = 36,
+  className = "card-icon",
+}: IconProps) {
   const [failed, setFailed] = useState<string | null>(null);
   const url = iconUrl(icon);
   const style = { width: size, height: size, flexBasis: size };
   if (!url || failed === url) {
     return (
-      <span className={`${className} fallback`} style={{ ...style, fontSize: size * 0.38 }} aria-hidden>
+      <span
+        className={`${className} fallback`}
+        style={{ ...style, fontSize: size * 0.38 }}
+        aria-hidden
+      >
         {initials(name)}
       </span>
     );

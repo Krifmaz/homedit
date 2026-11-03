@@ -12,7 +12,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Api } from "../api/client";
+import type { Api, InlineData } from "../api/client";
 import type { ConfigDoc, DashboardData, Me, StatusMap, WidgetSchema } from "../api/types";
 import { initUndo, isDirty, undoReducer } from "../editor/history";
 
@@ -85,15 +85,15 @@ export function useApp(): AppState {
 export interface AppProviderProps {
   api: Api;
   /** Data the server inlined into the page for the first paint. */
-  initial?: DashboardData | null;
+  initial?: InlineData | null;
   children: ReactNode;
 }
 
 /** Provides {@link AppState} to the tree. */
 export function AppProvider({ api, initial = null, children }: AppProviderProps) {
   const [me, setMe] = useState<Me | null>(null);
-  const [view, setView] = useState<DashboardData | null>(initial);
-  const [status, setStatus] = useState<StatusMap>({});
+  const [view, setView] = useState<DashboardData | null>(initial?.dashboard ?? null);
+  const [status, setStatus] = useState<StatusMap>(initial?.status ?? {});
   const [catalog, setCatalog] = useState<WidgetSchema[]>([]);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +101,7 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
   const [target, setTarget] = useState<EditTarget | null>(null);
   const [undo, dispatch] = useReducer(undoReducer, null, () =>
     initUndo(
-      initial ?? {
+      initial?.dashboard ?? {
         version: "",
         settings: {
           title: "",
@@ -126,13 +126,21 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
     let alive = true;
     api.me().then((m) => alive && setMe(m), fail);
     api.dashboard().then((d) => alive && setView(d), fail);
-    api.status().then((s) => alive && setStatus(s), () => {});
-    const close = api.subscribeStatus((e) =>
-      setStatus((prev) => {
-        const old = prev[e.serviceId];
-        const history = [...(old?.history ?? []).slice(-59), { t: e.checkedAt, up: e.up, ms: e.latencyMs }];
-        return { ...prev, [e.serviceId]: { ...e, history } };
-      }),
+    api.status().then(
+      (s) => alive && setStatus(s),
+      () => {},
+    );
+    const close = api.subscribeStatus(
+      (e) =>
+        setStatus((prev) => {
+          const old = prev[e.serviceId];
+          const history = [
+            ...(old?.history ?? []).slice(-59),
+            { t: e.checkedAt, up: e.up, ms: e.latencyMs },
+          ];
+          return { ...prev, [e.serviceId]: { ...e, history } };
+        }),
+      () => api.dashboard().then((d) => alive && setView(d), fail),
     );
     return () => {
       alive = false;
@@ -204,7 +212,22 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
       open: setTarget,
       clearError: () => setError(null),
     }),
-    [api, me, editing, undo, view, status, catalog, error, saving, target, startEditing, stopEditing, save, reload],
+    [
+      api,
+      me,
+      editing,
+      undo,
+      view,
+      status,
+      catalog,
+      error,
+      saving,
+      target,
+      startEditing,
+      stopEditing,
+      save,
+      reload,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

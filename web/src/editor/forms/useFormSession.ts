@@ -16,8 +16,6 @@ export interface FormSession {
   done(): void;
   /** Revert this session's changes and close. */
   cancel(): void;
-  /** Whether anything changed in this session. */
-  changed: boolean;
 }
 
 /**
@@ -44,7 +42,5 @@ export function useFormSession(onClose: () => void): FormSession {
       if (changed.current) app.undo();
       onClose();
     },
-    // eslint-disable-next-line react-hooks/refs -- read for display only
-    changed: changed.current,
   };
 }

@@ -20,8 +20,20 @@ import type {
 
 /** Field schema list shared by the *arr apps. */
 const arrFields = [
-  { key: "url", label: "URL", kind: "url", required: true, help: "Base URL, e.g. http://sonarr:8989" },
-  { key: "key", label: "API key", kind: "secret", required: true, help: "Settings → General → API Key" },
+  {
+    key: "url",
+    label: "URL",
+    kind: "url",
+    required: true,
+    help: "Base URL, e.g. http://sonarr:8989",
+  },
+  {
+    key: "key",
+    label: "API key",
+    kind: "secret",
+    required: true,
+    help: "Settings → General → API Key",
+  },
 ] as const;
 
 /** A representative slice of the widget catalogue. */
@@ -45,7 +57,13 @@ export const mockCatalog: WidgetSchema[] = [
     fields: [
       { key: "url", label: "URL", kind: "url", required: true },
       { key: "key", label: "API key", kind: "secret", required: true },
-      { key: "enableNowPlaying", label: "Show now playing", kind: "bool", required: false, default: true },
+      {
+        key: "enableNowPlaying",
+        label: "Show now playing",
+        kind: "bool",
+        required: false,
+        default: true,
+      },
     ],
   },
   {
@@ -64,9 +82,21 @@ export const mockCatalog: WidgetSchema[] = [
     category: "Infrastructure",
     fields: [
       { key: "url", label: "URL", kind: "url", required: true, help: "https://pve:8006" },
-      { key: "username", label: "API token ID", kind: "string", required: true, help: "user@pam!token" },
+      {
+        key: "username",
+        label: "API token ID",
+        kind: "string",
+        required: true,
+        help: "user@pam!token",
+      },
       { key: "password", label: "API token secret", kind: "secret", required: true },
-      { key: "node", label: "Node", kind: "string", required: false, help: "Leave empty for all nodes" },
+      {
+        key: "node",
+        label: "Node",
+        kind: "string",
+        required: false,
+        help: "Leave empty for all nodes",
+      },
     ],
   },
   {
@@ -75,9 +105,28 @@ export const mockCatalog: WidgetSchema[] = [
     category: "Generic",
     fields: [
       { key: "url", label: "URL", kind: "url", required: true },
-      { key: "method", label: "Method", kind: "select", required: true, default: "GET", options: ["GET", "POST"] },
-      { key: "refreshInterval", label: "Refresh (seconds)", kind: "number", required: false, default: 30 },
-      { key: "mappings", label: "Field mapping", kind: "string", required: false, help: "label=json.path, one per comma" },
+      {
+        key: "method",
+        label: "Method",
+        kind: "select",
+        required: true,
+        default: "GET",
+        options: ["GET", "POST"],
+      },
+      {
+        key: "refreshInterval",
+        label: "Refresh (seconds)",
+        kind: "number",
+        required: false,
+        default: 30,
+      },
+      {
+        key: "mappings",
+        label: "Field mapping",
+        kind: "string",
+        required: false,
+        help: "label=json.path, one per comma",
+      },
     ],
   },
 ];
@@ -114,7 +163,10 @@ export function sampleConfig(): ConfigDoc {
             href: "http://plex.lan:32400",
             description: "Movies and shows",
             check: { kind: "http" },
-            widget: { type: "plex", fields: { url: "http://plex.lan:32400", key: { $secret: "set" } } },
+            widget: {
+              type: "plex",
+              fields: { url: "http://plex.lan:32400", key: { $secret: "set" } },
+            },
           },
           {
             id: "s-jellyfin",
@@ -132,7 +184,10 @@ export function sampleConfig(): ConfigDoc {
             href: "http://sonarr.lan:8989",
             description: "TV series",
             check: { kind: "http" },
-            widget: { type: "sonarr", fields: { url: "http://sonarr.lan:8989", key: { $secret: "set" } } },
+            widget: {
+              type: "sonarr",
+              fields: { url: "http://sonarr.lan:8989", key: { $secret: "set" } },
+            },
           },
           {
             id: "s-radarr",
@@ -141,7 +196,10 @@ export function sampleConfig(): ConfigDoc {
             href: "http://radarr.lan:7878",
             description: "Movies",
             check: { kind: "http" },
-            widget: { type: "radarr", fields: { url: "http://radarr.lan:7878", key: { $secret: "set" } } },
+            widget: {
+              type: "radarr",
+              fields: { url: "http://radarr.lan:7878", key: { $secret: "set" } },
+            },
           },
         ],
       },
@@ -200,7 +258,14 @@ export function sampleConfig(): ConfigDoc {
       {
         id: "b-social",
         name: "Social",
-        items: [{ id: "b-reddit", name: "r/selfhosted", abbr: "SH", href: "https://reddit.com/r/selfhosted" }],
+        items: [
+          {
+            id: "b-reddit",
+            name: "r/selfhosted",
+            abbr: "SH",
+            href: "https://reddit.com/r/selfhosted",
+          },
+        ],
       },
     ],
   };
@@ -211,13 +276,15 @@ export function sampleConfig(): ConfigDoc {
  * the server's `/icons` route in mock mode.
  */
 export function mockIconUrl(ref: string): string {
-  if (ref.startsWith("sh-")) return `https://cdn.jsdelivr.net/gh/selfhst/icons/png/${ref.slice(3)}.png`;
-  if (ref.startsWith("mdi-")) return `https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/${ref.slice(4)}.svg`;
+  if (ref.startsWith("sh-"))
+    return `https://cdn.jsdelivr.net/gh/selfhst/icons/png/${ref.slice(3)}.png`;
+  if (ref.startsWith("mdi-"))
+    return `https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/${ref.slice(4)}.svg`;
   const name = ref.replace(/\.(png|svg|webp)$/, "");
   return `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/${name}.png`;
 }
 
-const clone = <T,>(v: T): T => structuredClone(v);
+const clone = <T>(v: T): T => structuredClone(v);
 
 /** Options for {@link MockApi}. */
 export interface MockOptions {
@@ -257,7 +324,11 @@ export class MockApi implements Api {
         if (!s.check) continue;
         const history = Array.from({ length: 30 }, (_, i) => {
           const up = !(s.id === "s-jellyfin" && i > 25);
-          return { t: now - (30 - i) * 60_000, up, ms: up ? 20 + Math.round(Math.random() * 80) : undefined };
+          return {
+            t: now - (30 - i) * 60_000,
+            up,
+            ms: up ? 20 + Math.round(Math.random() * 80) : undefined,
+          };
         });
         const last = history[history.length - 1]!;
         this.statusMap[s.id] = {
@@ -306,7 +377,13 @@ export class MockApi implements Api {
       if (!id) return;
       const ms = 15 + Math.round(Math.random() * 90);
       const up = id === "s-jellyfin" ? Math.random() > 0.5 : true;
-      const e: StatusEvent = { serviceId: id, up, latencyMs: up ? ms : undefined, checkedAt: Date.now(), code: up ? 200 : 502 };
+      const e: StatusEvent = {
+        serviceId: id,
+        up,
+        latencyMs: up ? ms : undefined,
+        checkedAt: Date.now(),
+        code: up ? 200 : 502,
+      };
       const st = this.statusMap[id]!;
       st.history = [...st.history.slice(-29), { t: e.checkedAt, up, ms: e.latencyMs }];
       Object.assign(st, { up, latencyMs: e.latencyMs, checkedAt: e.checkedAt, code: e.code });
@@ -319,11 +396,29 @@ export class MockApi implements Api {
     const svc = this.doc.groups.flatMap((g) => g.items).find((s) => s.id === serviceId);
     switch (svc?.widget?.type) {
       case "sonarr":
-        return { fields: [{ label: "Wanted", value: 4 }, { label: "Queued", value: 2 }, { label: "Series", value: 118 }] };
+        return {
+          fields: [
+            { label: "Wanted", value: 4 },
+            { label: "Queued", value: 2 },
+            { label: "Series", value: 118 },
+          ],
+        };
       case "radarr":
-        return { fields: [{ label: "Wanted", value: 7 }, { label: "Missing", value: 3 }, { label: "Movies", value: 642 }] };
+        return {
+          fields: [
+            { label: "Wanted", value: 7 },
+            { label: "Missing", value: 3 },
+            { label: "Movies", value: 642 },
+          ],
+        };
       case "plex":
-        return { fields: [{ label: "Streams", value: 1 }, { label: "Movies", value: 642 }, { label: "Shows", value: 118 }] };
+        return {
+          fields: [
+            { label: "Streams", value: 1 },
+            { label: "Movies", value: 642 },
+            { label: "Shows", value: 118 },
+          ],
+        };
       default:
         return { fields: [], error: svc?.widget ? "No mock data for this widget" : undefined };
     }
@@ -335,7 +430,13 @@ export class MockApi implements Api {
       case "weather":
         return { tempC: 14, condition: "Partly cloudy" };
       case "resources":
-        return { cpu: 12 + Math.random() * 20, memUsed: 6.2e9, memTotal: 16e9, diskUsed: 1.1e12, diskTotal: 4e12 };
+        return {
+          cpu: 12 + Math.random() * 20,
+          memUsed: 6.2e9,
+          memTotal: 16e9,
+          diskUsed: 1.1e12,
+          diskTotal: 4e12,
+        };
       case "docker":
         return { running: 23, stopped: 2 };
       default:
@@ -386,7 +487,11 @@ export class MockApi implements Api {
     return next.version;
   }
   private isSecretField(type: string, key: string) {
-    return mockCatalog.find((w) => w.type === type)?.fields.some((f) => f.key === key && f.kind === "secret") ?? false;
+    return (
+      mockCatalog
+        .find((w) => w.type === type)
+        ?.fields.some((f) => f.key === key && f.kind === "secret") ?? false
+    );
   }
   async history() {
     await this.wait();
@@ -407,7 +512,24 @@ export class MockApi implements Api {
   }
   async searchIcons(q: string) {
     await this.wait();
-    const names = ["plex", "jellyfin", "sonarr", "radarr", "prowlarr", "proxmox", "pi-hole", "adguard-home", "portainer", "immich", "qbittorrent", "sabnzbd", "uptime-kuma", "home-assistant", "grafana", "nextcloud"];
+    const names = [
+      "plex",
+      "jellyfin",
+      "sonarr",
+      "radarr",
+      "prowlarr",
+      "proxmox",
+      "pi-hole",
+      "adguard-home",
+      "portainer",
+      "immich",
+      "qbittorrent",
+      "sabnzbd",
+      "uptime-kuma",
+      "home-assistant",
+      "grafana",
+      "nextcloud",
+    ];
     const ql = q.toLowerCase();
     const builtIn: IconResult[] = names
       .filter((n) => n.includes(ql))

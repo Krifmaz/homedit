@@ -152,7 +152,10 @@ export function deleteGroup(doc: ConfigDoc, groupId: string): ConfigDoc {
 }
 
 /** Inserts or replaces a bookmark group (name only when it exists). */
-export function upsertBookmarkGroup(doc: ConfigDoc, group: Omit<BookmarkGroup, "items">): ConfigDoc {
+export function upsertBookmarkGroup(
+  doc: ConfigDoc,
+  group: Omit<BookmarkGroup, "items">,
+): ConfigDoc {
   return produce(doc, (d) => {
     const existing = d.bookmarks.find((b) => b.id === group.id);
     if (existing) existing.name = group.name;
