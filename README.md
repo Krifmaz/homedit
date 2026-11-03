@@ -164,8 +164,31 @@ cargo deny check     # licences (no GPL) and advisories
 
 CI runs all of the above, builds the web UI, builds the image for both
 architectures, and checks the image size and idle memory. Pushes to `main`
-publish `ghcr.io/krifmaz/homedit:edge`; tags like `v0.1.0` publish `0.1.0`,
-`0.1` and `latest`.
+publish `ghcr.io/krifmaz/homedit:edge`.
+
+## Releases
+
+Releases are automatic. When CI passes on `main`, the release workflow picks
+the next version from the commits since the last tag, using
+[Conventional Commits](https://www.conventionalcommits.org) prefixes:
+
+| Commits since the last tag              | Next version (from 0.4.2)        |
+|-----------------------------------------|----------------------------------|
+| any `type!:` or `BREAKING CHANGE`       | 0.5.0 (on 1.x and later: 2.0.0)  |
+| any `feat:` (and no breaking change)    | 0.5.0                            |
+| anything else                           | 0.4.3                            |
+
+It then bumps the workspace version, commits `chore(release): vX.Y.Z`, pushes
+the `vX.Y.Z` tag and publishes:
+
+* images `ghcr.io/krifmaz/homedit:X.Y.Z`, `:X.Y` and `:latest`,
+* a GitHub Release with grouped notes, static `linux-amd64` and
+  `linux-arm64` binaries, and `SHA256SUMS`.
+
+The first release (no tag yet) uses the version already in `Cargo.toml`. To
+release by hand, or to choose the version, run the **Release** workflow from
+the Actions tab. `scripts/next-version.sh` prints the next version and
+`scripts/release-notes.sh <version>` previews the notes.
 
 ## License
 
