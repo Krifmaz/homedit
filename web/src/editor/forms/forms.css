@@ -85,3 +85,25 @@
 .info-widget-item .btn-row {
   margin-bottom: 10px;
 }
+
+/* Keep everything inside the drawer: fieldsets default to min-width: auto,
+   which lets long rows (secret input + Replace + Clear) overflow it. */
+.drawer fieldset {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.secret-row > input,
+.icon-picker-row > input {
+  min-width: 0;
+}
+
+.secret-row {
+  flex-wrap: wrap;
+}
+
+.drawer input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="color"]),
+.drawer select,
+.drawer textarea {
+  max-width: 100%;
+}

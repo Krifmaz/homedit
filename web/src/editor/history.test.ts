@@ -63,3 +63,16 @@ describe("undoReducer", () => {
     expect(isDirty(s)).toBe(true);
   });
 });
+
+describe("synced", () => {
+  it("replaces the present with the server copy and keeps undo", () => {
+    let s = initUndo(sampleConfig());
+    s = undoReducer(s, { type: "apply", doc: updateSettings(s.present, { title: "A" }) });
+    s = undoReducer(s, { type: "saved", version: "v2" });
+    const server = { ...s.present, groups: [] };
+    s = undoReducer(s, { type: "synced", doc: server });
+    expect(s.present).toBe(server);
+    expect(isDirty(s)).toBe(false);
+    expect(s.past).toHaveLength(1);
+  });
+});

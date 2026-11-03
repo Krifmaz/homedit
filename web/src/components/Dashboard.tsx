@@ -308,7 +308,12 @@ function SortableCard({
       style={drag.style}
       className={drag.isDragging ? "dragging" : undefined}
       {...(dnd
-        ? { ...drag.attributes, ...drag.listeners, "aria-roledescription": "draggable card" }
+        ? {
+            ...drag.attributes,
+            ...drag.listeners,
+            "aria-roledescription": "draggable card",
+            "aria-label": service.name,
+          }
         : {})}
     >
       <ServiceCard

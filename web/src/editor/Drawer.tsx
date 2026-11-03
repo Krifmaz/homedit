@@ -8,6 +8,8 @@
 import { useApp } from "../app/context";
 import { PasswordForm } from "../auth/PasswordForm";
 import { UsersPanel } from "../auth/UsersPanel";
+import { BackupPanel } from "../discovery/BackupPanel";
+import { ScanPanel } from "../discovery/ScanPanel";
 import { BookmarkForm, BookmarkGroupForm } from "./forms/BookmarkForms";
 import { GroupForm } from "./forms/GroupForm";
 import { InfoWidgetsForm } from "./forms/InfoWidgetsForm";
@@ -44,6 +46,12 @@ export function Drawer() {
       break;
     case "history":
       body = <HistoryPanel onClose={close} />;
+      break;
+    case "scan":
+      body = <ScanPanel onClose={close} />;
+      break;
+    case "backup":
+      body = <BackupPanel onClose={close} />;
       break;
     case "users":
       body = <UsersPanel onClose={close} />;

@@ -10,9 +10,14 @@ import type {
   ConfigDoc,
   FieldValue,
   HistoryEntry,
+  HostResult,
   IconResult,
+  ImportWarning,
   LoginResult,
   Me,
+  ScanJob,
+  ScanRequest,
+  ServiceSuggestion,
   StatusEvent,
   StatusMap,
   UserAccount,
@@ -611,6 +616,153 @@ export class MockApi implements Api {
     const nv = await this.saveConfig(v);
     this.log[0]!.summary = `Restored ${version}`;
     return nv;
+  }
+  private scan: ScanJob = { id: 0, running: false, events: [], suggestions: {} };
+
+  async startScan(req: ScanRequest) {
+    await this.wait();
+    if (this.role !== "admin") throw new ApiError(403, "Admins only.", "forbidden");
+    if (this.scan.running) throw new ApiError(409, "A scan is already running.", "conflict");
+    if (req.targets.length === 0)
+      throw new ApiError(400, "Add at least one target.", "bad_request");
+    const bad = req.targets.find((t) => /^(8\.8\.|1\.1\.|[a-z]+\.(com|net|org)$)/i.test(t));
+    if (bad)
+      throw new ApiError(
+        400,
+        `${bad} is not a private address. Only private ranges are allowed.`,
+        "bad_request",
+      );
+    const id = this.scan.id + 1;
+    this.scan = {
+      id,
+      running: true,
+      events: [{ event: "started", addresses: 254, ports: 120, probes: 30480 }],
+      suggestions: {},
+    };
+    const finish = () => {
+      if (this.scan.id !== id) return;
+      const hosts: HostResult[] = [
+        {
+          ip: "192.168.1.20",
+          hostname: "media.lan",
+          services: [
+            {
+              port: 8989,
+              source: "scan",
+              http: { scheme: "http", status: 200, title: "Sonarr" },
+              app: {
+                id: "sonarr",
+                name: "Sonarr",
+                widget: "sonarr",
+                icon: "sonarr",
+                version: "4.0.9",
+                confidence: 95,
+              },
+              on_dashboard: true,
+            },
+            {
+              port: 8096,
+              source: "scan",
+              http: { scheme: "http", status: 200, title: "Jellyfin" },
+              app: {
+                id: "jellyfin",
+                name: "Jellyfin",
+                widget: "jellyfin",
+                icon: "jellyfin",
+                version: "10.10.3",
+                confidence: 95,
+              },
+              on_dashboard: false,
+            },
+          ],
+        },
+        {
+          ip: "192.168.1.30",
+          hostname: null,
+          services: [
+            {
+              port: 9000,
+              source: "scan",
+              http: { scheme: "http", status: 200, title: "Portainer" },
+              app: {
+                id: "portainer",
+                name: "Portainer",
+                widget: "portainer",
+                icon: "portainer",
+                version: null,
+                confidence: 80,
+              },
+              on_dashboard: false,
+            },
+            { port: 5432, source: "scan", http: null, app: null, on_dashboard: false },
+          ],
+        },
+      ];
+      const suggestions: Record<string, ServiceSuggestion> = {};
+      for (const h of hosts) {
+        for (const svc of h.services) {
+          const host = h.hostname ?? h.ip;
+          const href = `${svc.http?.scheme ?? "http"}://${host}:${svc.port}/`;
+          suggestions[`${h.ip}:${svc.port}`] = {
+            name: svc.app?.name ?? svc.http?.title ?? `Service on port ${svc.port}`,
+            href,
+            icon: svc.app ? `${svc.app.icon}.png` : null,
+            description: svc.app?.version ? `v${svc.app.version}` : null,
+            widget: svc.app?.widget ? { type: svc.app.widget, url: href.replace(/\/$/, "") } : null,
+            app_id: svc.app?.id ?? null,
+          };
+        }
+      }
+      this.scan = {
+        id,
+        running: false,
+        events: [
+          ...this.scan.events,
+          { event: "finished", open: 4, identified: 3, elapsed_ms: 2400 },
+        ],
+        report: {
+          targets: req.targets,
+          started_at_ms: Date.now() - 2400,
+          finished_at_ms: Date.now(),
+          probes_sent: 30480,
+          hosts,
+        },
+        suggestions,
+      };
+    };
+    const tick = (done: number) => {
+      if (this.scan.id !== id) return;
+      this.scan.events = [
+        ...this.scan.events,
+        { event: "progress", done, total: 30480, open: Math.round(done / 8000) },
+      ];
+    };
+    if (this.opts.latency === 0) finish();
+    else {
+      setTimeout(() => tick(10000), 400);
+      setTimeout(() => tick(22000), 900);
+      setTimeout(finish, 1500);
+    }
+    return id;
+  }
+  async scanJob() {
+    await this.wait();
+    return clone(this.scan);
+  }
+  async importFiles(files: File[]) {
+    await this.wait();
+    if (files.length === 0) throw new ApiError(400, "Choose at least one file.", "bad_request");
+    const known = /^(services|bookmarks|widgets|settings|docker|homedit)\.ya?ml$|^custom\.css$/;
+    const warnings: ImportWarning[] = files
+      .filter((f) => !known.test(f.name))
+      .map((f) => ({ file: f.name, path: "", message: "Unknown file name; skipped." }));
+    const doc = clone(this.doc);
+    const version = await this.saveConfig(doc);
+    this.log[0]!.summary = `Imported ${files.map((f) => f.name).join(", ")}`;
+    return { version, warnings };
+  }
+  exportUrl(withSecrets: boolean) {
+    return `/api/export?secrets=${withSecrets}`;
   }
   async searchIcons(q: string) {
     await this.wait();
