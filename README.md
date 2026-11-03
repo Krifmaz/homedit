@@ -12,6 +12,7 @@ Status: early development (Phase 1). See the crates below for what exists.
 |------------------|-------------------|-------------------------------------------------|
 | `crates/core`    | `homedit-core`    | Shared data model, icon names, status checks    |
 | `crates/db`      | `homedit-db`      | SQLite storage (sqlx), migrations, history      |
+| `crates/auth`    | `homedit-auth`    | Login (local, OIDC, proxy), roles, CSRF, encrypted secrets, SSRF guard |
 | `crates/server`  | `homedit`         | The axum server and binary, embeds `web/dist`   |
 | `web/`           | –                 | React + TypeScript + Vite frontend              |
 
