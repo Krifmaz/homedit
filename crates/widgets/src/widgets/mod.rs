@@ -10,6 +10,9 @@ use crate::schema::{FieldSpec, FieldType};
 use crate::widget::Widget;
 
 pub mod arr;
+pub mod immich;
+pub mod jellyfin;
+pub mod plex;
 
 /// Every built-in widget.
 pub fn all() -> Vec<Arc<dyn Widget>> {
@@ -17,6 +20,10 @@ pub fn all() -> Vec<Arc<dyn Widget>> {
         Arc::new(arr::Sonarr),
         Arc::new(arr::Radarr),
         Arc::new(arr::Prowlarr),
+        Arc::new(plex::Plex),
+        Arc::new(jellyfin::Jellyfin),
+        Arc::new(jellyfin::Emby),
+        Arc::new(immich::Immich),
     ]
 }
 

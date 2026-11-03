@@ -1,0 +1,13 @@
+{
+  "MediaContainer": {
+    "size": 4,
+    "allowSync": false,
+    "title1": "Plex Library",
+    "Directory": [
+      {"allowSync": true, "art": "/:/resources/movie-fanart.jpg", "key": "1", "type": "movie", "title": "Movies", "agent": "tv.plex.agents.movie", "scanner": "Plex Movie", "language": "en-US", "uuid": "a1b2c3d4-0001", "updatedAt": 1730000000, "Location": [{"id": 1, "path": "/data/movies"}]},
+      {"allowSync": true, "key": "2", "type": "show", "title": "TV Shows", "agent": "tv.plex.agents.series", "scanner": "Plex TV Series", "language": "en-US", "uuid": "a1b2c3d4-0002", "updatedAt": 1730000100, "Location": [{"id": 2, "path": "/data/tv"}]},
+      {"allowSync": true, "key": "3", "type": "artist", "title": "Music", "agent": "tv.plex.agents.music", "scanner": "Plex Music", "language": "en-US", "uuid": "a1b2c3d4-0003", "updatedAt": 1730000200, "Location": [{"id": 3, "path": "/data/music"}]},
+      {"allowSync": false, "key": "4", "type": "photo", "title": "Photos", "agent": "com.plexapp.agents.none", "scanner": "Plex Photo Scanner", "language": "xn", "uuid": "a1b2c3d4-0004", "updatedAt": 1730000300, "Location": [{"id": 4, "path": "/data/photos"}]}
+    ]
+  }
+}

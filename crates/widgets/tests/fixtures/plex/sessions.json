@@ -1,0 +1,48 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "addedAt": 1699011234,
+        "duration": 2640000,
+        "grandparentTitle": "Severance",
+        "grandparentKey": "/library/metadata/5512",
+        "index": 3,
+        "key": "/library/metadata/5530",
+        "librarySectionID": "2",
+        "librarySectionTitle": "TV Shows",
+        "parentIndex": 2,
+        "parentTitle": "Season 2",
+        "ratingKey": "5530",
+        "sessionKey": "41",
+        "thumb": "/library/metadata/5530/thumb/1737072010",
+        "title": "Who Is Alive?",
+        "type": "episode",
+        "viewOffset": 1320000,
+        "year": 2025,
+        "Media": [
+          {"audioChannels": 6, "audioCodec": "eac3", "bitrate": 8102, "container": "mkv", "duration": 2640000, "height": 1080, "id": "11201", "videoCodec": "h264", "videoResolution": "1080", "width": 1920}
+        ],
+        "User": {"id": "1", "thumb": "https://plex.tv/users/abc/avatar", "title": "alice"},
+        "Player": {"address": "192.168.1.40", "device": "Apple TV", "machineIdentifier": "4f6c1b", "platform": "tvOS", "product": "Plex for Apple TV", "state": "playing", "title": "Living Room", "local": true},
+        "Session": {"id": "q1w2e3r4", "bandwidth": 9000, "location": "lan"}
+      },
+      {
+        "addedAt": 1688000000,
+        "duration": 8880000,
+        "key": "/library/metadata/1201",
+        "librarySectionID": "1",
+        "librarySectionTitle": "Movies",
+        "ratingKey": "1201",
+        "sessionKey": "42",
+        "title": "Dune: Part Two",
+        "type": "movie",
+        "viewOffset": 2220000,
+        "year": 2024,
+        "User": {"id": "7", "title": "bob"},
+        "Player": {"address": "10.0.0.12", "device": "Chrome", "platform": "Chrome", "product": "Plex Web", "state": "paused", "title": "Chrome", "local": false},
+        "TranscodeSession": {"key": "/transcode/sessions/zz9", "progress": 31.5, "speed": 2.1, "throttled": true, "videoDecision": "transcode", "audioDecision": "copy"}
+      }
+    ]
+  }
+}

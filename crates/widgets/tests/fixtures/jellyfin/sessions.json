@@ -1,0 +1,65 @@
+[
+  {
+    "PlayState": {"PositionTicks": 18000000000, "CanSeek": true, "IsPaused": false, "IsMuted": false, "VolumeLevel": 100, "AudioStreamIndex": 1, "SubtitleStreamIndex": -1, "MediaSourceId": "c2f1", "PlayMethod": "DirectPlay", "RepeatMode": "RepeatNone"},
+    "AdditionalUsers": [],
+    "Capabilities": {"PlayableMediaTypes": ["Audio", "Video"], "SupportedCommands": [], "SupportsMediaControl": true},
+    "RemoteEndPoint": "192.168.1.51",
+    "PlayableMediaTypes": ["Audio", "Video"],
+    "Id": "8b1e0c7f6a5d4c3b2a1f0e9d8c7b6a59",
+    "UserId": "5c1a4f9e8d7c6b5a4f3e2d1c0b9a8f7e",
+    "UserName": "alice",
+    "Client": "Jellyfin Android TV",
+    "LastActivityDate": "2026-11-03T19:12:44.0000000Z",
+    "LastPlaybackCheckIn": "2026-11-03T19:12:40.0000000Z",
+    "DeviceName": "Shield",
+    "DeviceId": "e1d2c3b4",
+    "ApplicationVersion": "0.18.2",
+    "NowPlayingItem": {
+      "Name": "The Rains of Castamere",
+      "Id": "a9f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4",
+      "Type": "Episode",
+      "SeriesName": "Game of Thrones",
+      "SeasonName": "Season 3",
+      "IndexNumber": 9,
+      "ParentIndexNumber": 3,
+      "RunTimeTicks": 36000000000,
+      "MediaType": "Video",
+      "IsFolder": false
+    },
+    "IsActive": true,
+    "SupportsMediaControl": true,
+    "SupportsRemoteControl": true,
+    "HasCustomDeviceName": false,
+    "ServerId": "f00dfeedf00dfeedf00dfeedf00dfeed"
+  },
+  {
+    "PlayState": {"PositionTicks": 9000000000, "CanSeek": true, "IsPaused": true, "IsMuted": false, "PlayMethod": "Transcode", "RepeatMode": "RepeatNone"},
+    "Id": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+    "UserId": "77aa88bb99cc00dd11ee22ff33aa44bb",
+    "UserName": "bob",
+    "Client": "Jellyfin Web",
+    "DeviceName": "Firefox",
+    "NowPlayingItem": {
+      "Name": "Arrival",
+      "Id": "b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5",
+      "Type": "Movie",
+      "ProductionYear": 2016,
+      "RunTimeTicks": 69600000000,
+      "MediaType": "Video",
+      "IsFolder": false
+    },
+    "TranscodingInfo": {"AudioCodec": "aac", "VideoCodec": "h264", "Container": "ts", "IsVideoDirect": false, "IsAudioDirect": false, "Bitrate": 4000000, "Width": 1280, "Height": 720},
+    "IsActive": true,
+    "ServerId": "f00dfeedf00dfeedf00dfeedf00dfeed"
+  },
+  {
+    "PlayState": {"CanSeek": false, "IsPaused": false, "IsMuted": false, "RepeatMode": "RepeatNone"},
+    "Id": "ffeeddccbbaa99887766554433221100",
+    "UserId": "5c1a4f9e8d7c6b5a4f3e2d1c0b9a8f7e",
+    "UserName": "alice",
+    "Client": "Jellyfin iOS",
+    "DeviceName": "iPhone",
+    "IsActive": true,
+    "ServerId": "f00dfeedf00dfeedf00dfeedf00dfeed"
+  }
+]

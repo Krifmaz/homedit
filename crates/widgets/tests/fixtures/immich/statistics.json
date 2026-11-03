@@ -1,0 +1,12 @@
+{
+  "photos": 48213,
+  "videos": 2391,
+  "usage": 412316860416,
+  "usagePhotos": 198642237440,
+  "usageVideos": 213674622976,
+  "usageByUser": [
+    {"userId": "0b5c2d1e-7a3f-4e19-9c8d-2f6a1b3c4d5e", "userName": "Alice", "photos": 30112, "videos": 1803, "usage": 301989888000, "usagePhotos": 120259084288, "usageVideos": 181730803712, "quotaSizeInBytes": null},
+    {"userId": "9e8d7c6b-5a4f-4321-8fed-cba987654321", "userName": "Bob", "photos": 15409, "videos": 512, "usage": 98784247808, "usagePhotos": 68719476736, "usageVideos": 30064771072, "quotaSizeInBytes": 214748364800},
+    {"userId": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", "userName": "Carol", "photos": 2692, "videos": 76, "usage": 11542724608, "usagePhotos": 9663676416, "usageVideos": 1879048192, "quotaSizeInBytes": null}
+  ]
+}
