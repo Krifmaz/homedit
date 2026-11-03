@@ -12,7 +12,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Api, InlineData } from "../api/client";
+import { ApiError, type Api, type InlineData } from "../api/client";
 import type { ConfigDoc, DashboardData, Me, StatusMap, WidgetSchema } from "../api/types";
 import { initUndo, isDirty, undoReducer } from "../editor/history";
 
@@ -24,7 +24,9 @@ export type EditTarget =
   | { kind: "bookmark"; groupId: string; bookmarkId?: string }
   | { kind: "infoWidgets" }
   | { kind: "settings" }
-  | { kind: "history" };
+  | { kind: "history" }
+  | { kind: "users" }
+  | { kind: "password" };
 
 /** Everything components read from {@link useApp}. */
 export interface AppState {
@@ -70,6 +72,16 @@ export interface AppState {
   open(target: EditTarget | null): void;
   /** Clear the error message. */
   clearError(): void;
+  /** Whether the visitor must sign in (or run first-time setup) first. */
+  needsLogin: boolean;
+  /** Show (true) or leave (false) the sign-in page while browsing anonymously. */
+  requestLogin(show: boolean): void;
+  /** Whether the sign-in page was opened voluntarily (it can be left). */
+  loginOptional: boolean;
+  /** Refetch the session and dashboard, e.g. after signing in. */
+  refreshSession(): void;
+  /** Sign out and return to the anonymous view or the login page. */
+  logout(): Promise<void>;
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -122,10 +134,23 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
     setError(e instanceof Error ? e.message : String(e));
   }, []);
 
+  const [session, setSession] = useState(0);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const [wantLogin, setWantLogin] = useState(false);
+
   useEffect(() => {
     let alive = true;
-    api.me().then((m) => alive && setMe(m), fail);
-    api.dashboard().then((d) => alive && setView(d), fail);
+    const loadFail = (e: unknown) => {
+      if (!alive) return;
+      if (e instanceof ApiError && e.status === 401) setUnauthorized(true);
+      else fail(e);
+    };
+    api.me().then((m) => alive && setMe(m), loadFail);
+    api.dashboard().then((d) => {
+      if (!alive) return;
+      setView(d);
+      setUnauthorized(false);
+    }, loadFail);
     api.status().then(
       (s) => alive && setStatus(s),
       () => {},
@@ -140,13 +165,35 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
           ];
           return { ...prev, [e.serviceId]: { ...e, history } };
         }),
-      () => api.dashboard().then((d) => alive && setView(d), fail),
+      () => api.dashboard().then((d) => alive && setView(d), loadFail),
     );
     return () => {
       alive = false;
       close();
     };
-  }, [api, fail]);
+  }, [api, fail, session]);
+
+  const refreshSession = useCallback(() => {
+    setEditing(false);
+    setTarget(null);
+    setError(null);
+    setWantLogin(false);
+    setSession((n) => n + 1);
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      const url = await api.logout();
+      if (url) {
+        window.location.assign(url);
+        return;
+      }
+      setView(null);
+      refreshSession();
+    } catch (e) {
+      fail(e);
+    }
+  }, [api, fail, refreshSession]);
 
   const startEditing = useCallback(async () => {
     try {
@@ -211,6 +258,15 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
       reload,
       open: setTarget,
       clearError: () => setError(null),
+      needsLogin:
+        wantLogin ||
+        unauthorized ||
+        !!me?.setupRequired ||
+        (!!me && me.authEnabled && me.role === null),
+      requestLogin: setWantLogin,
+      loginOptional: wantLogin && !unauthorized && !me?.setupRequired && !!me && me.role !== null,
+      refreshSession,
+      logout,
     }),
     [
       api,
@@ -227,6 +283,10 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
       stopEditing,
       save,
       reload,
+      unauthorized,
+      wantLogin,
+      refreshSession,
+      logout,
     ],
   );
 

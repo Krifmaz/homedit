@@ -5,15 +5,17 @@
  * It behaves like the real server for versioning, secrets and history, so the
  * editor can be exercised end to end without a backend.
  */
-import { ConflictError, type Api } from "./client";
+import { ApiError, ConflictError, type Api } from "./client";
 import type {
   ConfigDoc,
   FieldValue,
   HistoryEntry,
   IconResult,
+  LoginResult,
   Me,
   StatusEvent,
   StatusMap,
+  UserAccount,
   WidgetConfig,
   WidgetSchema,
 } from "./types";
@@ -294,7 +296,15 @@ export interface MockOptions {
   latency?: number;
   /** Whether to emit random status events; true by default outside tests. */
   liveEvents?: boolean;
+  /**
+   * Auth state the mock starts in: `open` (signed in as `role`, the default),
+   * `login` (must sign in; admin/admin-password works) or `setup` (no users yet).
+   */
+  auth?: "open" | "login" | "setup";
 }
+
+/** Password of the mock `admin` user in `login` mode. */
+export const MOCK_PASSWORD = "admin-password";
 
 /** In-memory {@link Api} implementation. */
 export class MockApi implements Api {
@@ -307,9 +317,15 @@ export class MockApi implements Api {
   private readonly opts: Required<MockOptions>;
   private readonly statusMap: StatusMap = {};
   private readonly customIcons: IconResult[] = [];
+  private signedIn: UserAccount | null = null;
+  private accounts: UserAccount[] = [];
 
   constructor(opts: MockOptions = {}, initial: ConfigDoc = sampleConfig()) {
-    this.opts = { role: "admin", latency: 0, liveEvents: true, ...opts };
+    this.opts = { role: "admin", latency: 0, liveEvents: true, auth: "open", ...opts };
+    if (this.opts.auth !== "setup") {
+      this.accounts.push(this.account("admin", "admin"));
+      if (this.opts.auth === "open") this.signedIn = { ...this.accounts[0]!, role: this.opts.role };
+    }
     this.doc = clone(initial);
     this.versions.set(this.doc.version, clone(this.doc));
     this.log.push({
@@ -348,18 +364,104 @@ export class MockApi implements Api {
 
   private visible(doc: ConfigDoc): ConfigDoc {
     const out = clone(doc);
-    if (this.opts.role !== "admin") out.groups = out.groups.filter((g) => !g.hidden);
+    if (this.role !== "admin") out.groups = out.groups.filter((g) => !g.hidden);
     return out;
+  }
+
+  private account(username: string, role: "viewer" | "admin"): UserAccount {
+    return {
+      id: `u-${username}`,
+      username,
+      role,
+      source: "local",
+      disabled: false,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: null,
+    };
+  }
+
+  private get role() {
+    return this.signedIn?.role ?? null;
   }
 
   async me(): Promise<Me> {
     await this.wait();
     return {
-      user: this.opts.role === "admin" ? { name: "admin" } : null,
-      role: this.opts.role,
+      user: this.signedIn
+        ? { name: this.signedIn.username, id: this.signedIn.id, source: "local" }
+        : null,
+      role: this.role,
       authEnabled: true,
       csrfToken: "mock",
+      setupRequired: this.accounts.length === 0,
+      methods: { local: true, oidc: "Sign in with SSO", proxy: false, proxyLogoutUrl: null },
     };
+  }
+  async login(username: string, password: string): Promise<LoginResult> {
+    await this.wait();
+    const u = this.accounts.find((x) => x.username === username);
+    if (!u || password !== MOCK_PASSWORD) {
+      throw new ApiError(401, "Wrong username or password.", "invalid_credentials");
+    }
+    this.signedIn = u;
+    return { user: u, csrfToken: "mock" };
+  }
+  async setup(username: string, password: string): Promise<LoginResult> {
+    await this.wait();
+    if (this.accounts.length > 0) throw new ApiError(409, "Setup is already done.", "conflict");
+    if (password.length < 10)
+      throw new ApiError(400, "Password must be at least 10 characters.", "bad_request");
+    const u = this.account(username, "admin");
+    this.accounts.push(u);
+    this.signedIn = u;
+    return { user: u, csrfToken: "mock" };
+  }
+  async logout() {
+    await this.wait();
+    this.signedIn = null;
+    return null;
+  }
+  async changePassword(current: string, next: string) {
+    await this.wait();
+    if (current !== MOCK_PASSWORD)
+      throw new ApiError(401, "Current password is wrong.", "invalid_credentials");
+    if (next.length < 10)
+      throw new ApiError(400, "Password must be at least 10 characters.", "bad_request");
+  }
+  async users() {
+    await this.wait();
+    return clone(this.accounts);
+  }
+  async createUser(u: { username: string; password: string; role: "viewer" | "admin" }) {
+    await this.wait();
+    if (this.accounts.some((x) => x.username === u.username))
+      throw new ApiError(409, "Username taken.", "conflict");
+    const acc = this.account(u.username, u.role);
+    this.accounts.push(acc);
+    return clone(acc);
+  }
+  async updateUser(
+    id: string,
+    patch: { role?: "viewer" | "admin"; password?: string; disabled?: boolean },
+  ) {
+    await this.wait();
+    const u = this.accounts.find((x) => x.id === id);
+    if (!u) throw new ApiError(404, "No such user.", "not_found");
+    const admins = this.accounts.filter((x) => x.role === "admin" && !x.disabled);
+    if (u.role === "admin" && admins.length === 1 && (patch.role === "viewer" || patch.disabled)) {
+      throw new ApiError(409, "You can't remove the last admin.", "conflict");
+    }
+    if (patch.role) u.role = patch.role;
+    if (patch.disabled !== undefined) u.disabled = patch.disabled;
+    return clone(u);
+  }
+  async deleteUser(id: string) {
+    await this.wait();
+    const u = this.accounts.find((x) => x.id === id);
+    if (u?.role === "admin" && this.accounts.filter((x) => x.role === "admin").length === 1) {
+      throw new ApiError(409, "You can't remove the last admin.", "conflict");
+    }
+    this.accounts = this.accounts.filter((x) => x.id !== id);
   }
   async dashboard() {
     await this.wait();
@@ -457,7 +559,7 @@ export class MockApi implements Api {
   }
   async config() {
     await this.wait();
-    if (this.opts.role !== "admin") throw new Error("forbidden");
+    if (this.role !== "admin") throw new ApiError(403, "Admins only.", "forbidden");
     return clone(this.doc);
   }
   async saveConfig(doc: ConfigDoc) {

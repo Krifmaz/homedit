@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { Dashboard, filterGroups } from "../components/Dashboard";
 import { SearchBar } from "../components/SearchBar";
 import { InfoWidgetStrip } from "../components/widgets/InfoWidgetStrip";
+import { AccountMenu } from "../auth/AccountMenu";
+import { LoginPage } from "../auth/LoginPage";
 import { Drawer } from "../editor/Drawer";
 import { allGroups } from "../editor/ops";
 import { useApp } from "./context";
@@ -24,6 +26,8 @@ export function App() {
     const hits = allGroups({ groups: filterGroups(doc.groups, filter) }).flatMap((g) => g.items);
     return hits.length === 1 ? hits[0]!.href : undefined;
   }, [doc, filter]);
+
+  if (app.needsLogin) return <LoginPage />;
 
   const bg = doc?.settings.background;
   return (
@@ -79,18 +83,14 @@ export function App() {
               ✎ Edit
             </button>
           )}
-          {app.me?.authEnabled && !app.me.user && (
-            <a className="btn" href="/api/auth/login">
-              Sign in
-            </a>
-          )}
+          <AccountMenu />
         </header>
         {doc && doc.infoWidgets.length > 0 && <InfoWidgetStrip widgets={doc.infoWidgets} />}
         <main>
           <Dashboard filter={filter} />
         </main>
       </div>
-      {app.editing && <Drawer />}
+      {(app.editing || app.target?.kind === "password") && <Drawer />}
     </>
   );
 }

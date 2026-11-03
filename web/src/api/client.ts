@@ -9,10 +9,13 @@ import type {
   DashboardData,
   HistoryEntry,
   IconResult,
+  LoginResult,
   Me,
+  Role,
   StatusEvent,
   StatusMap,
   TestResult,
+  UserAccount,
   WidgetConfig,
   WidgetData,
   WidgetSchema,
@@ -30,11 +33,33 @@ export class ConflictError extends Error {
 export class ApiError extends Error {
   /** HTTP status code. */
   readonly status: number;
-  constructor(status: number, message: string) {
+  /** Machine-readable error code from `{error, message}` bodies, if any. */
+  readonly code?: string;
+  /** Seconds to wait before retrying, from `Retry-After` (rate limits). */
+  readonly retryAfter?: number;
+  constructor(status: number, message: string, code?: string, retryAfter?: number) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
+    this.retryAfter = retryAfter;
   }
+}
+
+/** Builds an {@link ApiError} from a failed response. */
+async function toApiError(res: Response): Promise<ApiError> {
+  const text = await res.text().catch(() => "");
+  let code: string | undefined;
+  let message = text || res.statusText;
+  try {
+    const body = JSON.parse(text) as { error?: string; message?: string };
+    code = body.error;
+    message = body.message || body.error || message;
+  } catch {
+    /* not JSON */
+  }
+  const ra = Number(res.headers.get("Retry-After"));
+  return new ApiError(res.status, message, code, Number.isFinite(ra) && ra > 0 ? ra : undefined);
 }
 
 /** Everything the UI needs from the backend. */
@@ -76,6 +101,25 @@ export interface Api {
   historyVersion(version: string): Promise<ConfigDoc>;
   /** Restore a past version; returns the new current version. */
   restore(version: string): Promise<string>;
+  /** Sign in with a username and password. */
+  login(username: string, password: string): Promise<LoginResult>;
+  /** Create the first admin (only while no users exist) and sign in. */
+  setup(username: string, password: string): Promise<LoginResult>;
+  /** Sign out; returns a URL to navigate to (proxy logout), if any. */
+  logout(): Promise<string | null>;
+  /** Change the signed-in local user's password. */
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
+  /** List user accounts (admin). */
+  users(): Promise<UserAccount[]>;
+  /** Create a local user (admin). */
+  createUser(u: { username: string; password: string; role: Role }): Promise<UserAccount>;
+  /** Change a user's role, password or disabled flag (admin). */
+  updateUser(
+    id: string,
+    patch: { role?: Role; password?: string; disabled?: boolean },
+  ): Promise<UserAccount>;
+  /** Delete a user (admin); fails with 409 for the last admin. */
+  deleteUser(id: string): Promise<void>;
   /** Search built-in and uploaded icons. */
   searchIcons(q: string): Promise<IconResult[]>;
   /** Upload a custom icon. */
@@ -122,12 +166,9 @@ export class HttpApi implements Api {
     if (init.body && typeof init.body === "string") headers.set("Content-Type", "application/json");
     const res = await fetch(this.base + path, { credentials: "same-origin", ...init, headers });
     if (res.status === 409) throw new ConflictError();
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new ApiError(res.status, text || res.statusText);
-    }
-    if (res.status === 204) return undefined as T;
-    return (await res.json()) as T;
+    if (!res.ok) throw await toApiError(res);
+    const text = await res.text();
+    return (text ? JSON.parse(text) : undefined) as T;
   }
 
   async me(): Promise<Me> {
@@ -199,6 +240,44 @@ export class HttpApi implements Api {
       { method: "POST" },
     );
     return res.version;
+  }
+  private async session(path: string, body: unknown): Promise<LoginResult> {
+    const res = await this.request<LoginResult>(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    this.csrf = res.csrfToken;
+    return res;
+  }
+  login(username: string, password: string) {
+    return this.session("/auth/login", { username, password });
+  }
+  setup(username: string, password: string) {
+    return this.session("/auth/setup", { username, password });
+  }
+  async logout() {
+    const res = await this.request<{ ok: boolean; logoutUrl: string | null }>("/auth/logout", {
+      method: "POST",
+    });
+    return res.logoutUrl ?? null;
+  }
+  async changePassword(currentPassword: string, newPassword: string) {
+    await this.session("/auth/password", { currentPassword, newPassword });
+  }
+  users() {
+    return this.request<UserAccount[]>("/auth/users");
+  }
+  createUser(u: { username: string; password: string; role: Role }) {
+    return this.request<UserAccount>("/auth/users", { method: "POST", body: JSON.stringify(u) });
+  }
+  updateUser(id: string, patch: { role?: Role; password?: string; disabled?: boolean }) {
+    return this.request<UserAccount>(`/auth/users/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  }
+  async deleteUser(id: string) {
+    await this.request<unknown>(`/auth/users/${encodeURIComponent(id)}`, { method: "DELETE" });
   }
   searchIcons(q: string) {
     return this.request<IconResult[]>(`/icons?q=${encodeURIComponent(q)}`);
