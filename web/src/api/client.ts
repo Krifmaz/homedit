@@ -9,9 +9,14 @@ import type {
   DashboardData,
   HistoryEntry,
   IconResult,
+  ImportResult,
+  ImportWarning,
   LoginResult,
   Me,
+  IconKind,
   Role,
+  ScanJob,
+  ScanRequest,
   StatusEvent,
   StatusMap,
   TestResult,
@@ -128,6 +133,17 @@ export interface Api {
   ): Promise<UserAccount>;
   /** Delete a user (admin); fails with 409 for the last admin. */
   deleteUser(id: string): Promise<void>;
+  /** Start a network scan (admin); fails with 409 while one runs. */
+  startScan(req: ScanRequest): Promise<number>;
+  /** The running or last scan with its results (admin). */
+  scanJob(): Promise<ScanJob>;
+  /**
+   * Import gethomepage config files (`services.yaml`, `bookmarks.yaml`, ...)
+   * or a `homedit.yaml` backup. The file name decides how each is read.
+   */
+  importFiles(files: File[]): Promise<ImportResult>;
+  /** URL that downloads the config as YAML, optionally with secrets. */
+  exportUrl(withSecrets: boolean): string;
   /** Search built-in and uploaded icons. */
   searchIcons(q: string): Promise<IconResult[]>;
   /** Upload a custom icon. */
@@ -137,7 +153,42 @@ export interface Api {
 /** Maps a non-URL icon reference (e.g. `di:plex`) to a URL. */
 export type IconResolver = (ref: string) => string;
 
-let resolveIcon: IconResolver = (ref) => `/icons/${encodeURIComponent(ref)}`;
+/** Icon CDNs, the same ones the server uses (`homedit_core::icons`). */
+const DASHBOARD_ICONS_CDN = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons";
+const SELFHST_ICONS_CDN = "https://cdn.jsdelivr.net/gh/selfhst/icons";
+const MDI_CDN = "https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg";
+const SIMPLE_ICONS_CDN = "https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons";
+
+/** Splits `name.ext` into stem and a supported extension (png by default). */
+function splitExt(name: string): [string, string] {
+  const m = /^(.*)\.(png|svg|webp)$/.exec(name);
+  return m ? [m[1]!, m[2]!] : [name, "png"];
+}
+
+/**
+ * Resolves a gethomepage-style icon name the way the server does, for the
+ * editor, which works on names rather than the dashboard's resolved URLs:
+ * `sonarr.png` (dashboard-icons), `sh-sonarr` (selfh.st), `mdi-x` and `si-x`
+ * (monochrome glyphs), `custom/x.png` (uploads). Unknown shapes yield `""`.
+ */
+export function resolveIconName(name: string): { url: string; kind: IconKind } {
+  const n = name.trim();
+  if (n.startsWith("custom/")) return { url: `/icons/custom/${n.slice(7)}`, kind: "image" };
+  if (!/^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(n)) return { url: "", kind: "image" };
+  if (n.startsWith("mdi-"))
+    return { url: `${MDI_CDN}/${n.slice(4).replace(/\.svg$/, "")}.svg`, kind: "mask" };
+  if (n.startsWith("si-")) {
+    return { url: `${SIMPLE_ICONS_CDN}/${n.slice(3).replace(/\.svg$/, "")}.svg`, kind: "mask" };
+  }
+  if (n.startsWith("sh-")) {
+    const [stem, ext] = splitExt(n.slice(3));
+    return { url: `${SELFHST_ICONS_CDN}/${ext}/${stem}.${ext}`, kind: "image" };
+  }
+  const [stem, ext] = splitExt(n);
+  return { url: `${DASHBOARD_ICONS_CDN}/${ext}/${stem}.${ext}`, kind: "image" };
+}
+
+let resolveIcon: IconResolver = (ref) => resolveIconName(ref).url;
 
 /** Replaces how icon references are resolved (used by the mock mode). */
 export function setIconResolver(fn: IconResolver): void {
@@ -287,6 +338,28 @@ export class HttpApi implements Api {
   }
   async deleteUser(id: string) {
     await this.request<unknown>(`/auth/users/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+  async startScan(req: ScanRequest) {
+    const res = await this.request<{ id: number }>("/scan", {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+    return res.id;
+  }
+  scanJob() {
+    return this.request<ScanJob>("/scan");
+  }
+  async importFiles(files: File[]) {
+    const body = new FormData();
+    for (const f of files) body.append("file", f, f.name);
+    const res = await this.request<{ version: unknown; warnings?: ImportWarning[] }>("/import", {
+      method: "POST",
+      body,
+    });
+    return { version: String(res.version), warnings: res.warnings ?? [] };
+  }
+  exportUrl(withSecrets: boolean) {
+    return `${this.base}/export?secrets=${withSecrets}`;
   }
   searchIcons(q: string) {
     return this.request<IconResult[]>(`/icons?q=${encodeURIComponent(q)}`);

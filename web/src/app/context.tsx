@@ -26,6 +26,8 @@ export type EditTarget =
   | { kind: "settings" }
   | { kind: "history" }
   | { kind: "users" }
+  | { kind: "scan" }
+  | { kind: "backup" }
   | { kind: "password" };
 
 /** Everything components read from {@link useApp}. */

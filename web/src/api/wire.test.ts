@@ -144,3 +144,22 @@ describe("wire mapping", () => {
     expect(statusEventFromWire({})).toBeNull();
   });
 });
+
+describe("icon names", () => {
+  it("resolves like the server", async () => {
+    const { resolveIconName } = await import("./client");
+    expect(resolveIconName("sonarr").url).toBe(
+      "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/sonarr.png",
+    );
+    expect(resolveIconName("sonarr.svg").url).toMatch(/\/svg\/sonarr\.svg$/);
+    expect(resolveIconName("sh-immich.webp").url).toBe(
+      "https://cdn.jsdelivr.net/gh/selfhst/icons/webp/immich.webp",
+    );
+    expect(resolveIconName("mdi-server")).toEqual({
+      url: "https://cdn.jsdelivr.net/npm/@mdi/svg@7.4.47/svg/server.svg",
+      kind: "mask",
+    });
+    expect(resolveIconName("custom/me.png").url).toBe("/icons/custom/me.png");
+    expect(resolveIconName("../etc").url).toBe("");
+  });
+});

@@ -64,6 +64,12 @@ export function Toolbar() {
       <button type="button" className="btn" onClick={() => app.open({ kind: "settings" })}>
         Appearance
       </button>
+      <button type="button" className="btn" onClick={() => app.open({ kind: "scan" })}>
+        Find services
+      </button>
+      <button type="button" className="btn" onClick={() => app.open({ kind: "backup" })}>
+        Import / export
+      </button>
       <button type="button" className="btn" onClick={() => app.open({ kind: "history" })}>
         History
       </button>

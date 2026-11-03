@@ -364,3 +364,109 @@ export interface DockerData {
   running: number;
   stopped: number;
 }
+
+/** Which ports a scan checks (`POST /api/scan`). */
+export type PortSet =
+  { kind: "common" } | { kind: "catalogue" } | { kind: "full" } | { kind: "list"; ports: string };
+
+/** Body of `POST /api/scan`. */
+export interface ScanRequest {
+  /** CIDR ranges, addresses or hostnames. */
+  targets: string[];
+  ports: PortSet;
+  /** Identify what answers on open ports. */
+  fingerprint: boolean;
+}
+
+/** The app a scan recognised on a port. */
+export interface AppMatch {
+  id: string;
+  name: string;
+  /** Widget type from the catalogue, when the app has one. */
+  widget?: string | null;
+  icon: string;
+  version?: string | null;
+  /** 0 to 100. */
+  confidence: number;
+}
+
+/** What a web service on a port answered with. */
+export interface HttpInfo {
+  scheme: "http" | "https";
+  status: number;
+  title?: string | null;
+  server?: string | null;
+}
+
+/** One open port on a host (field names as the scanner sends them). */
+export interface DiscoveredService {
+  port: number;
+  source: "scan" | "docker";
+  http?: HttpInfo | null;
+  app?: AppMatch | null;
+  container?: { id: string; name: string; image: string } | null;
+  /** Whether a dashboard card already points here. */
+  on_dashboard: boolean;
+}
+
+/** Everything found on one address. */
+export interface HostResult {
+  ip: string;
+  hostname?: string | null;
+  services: DiscoveredService[];
+}
+
+/** A finished scan. */
+export interface ScanReport {
+  targets: string[];
+  started_at_ms: number;
+  finished_at_ms: number;
+  probes_sent: number;
+  hosts: HostResult[];
+}
+
+/** Pre-filled card values for "Add to dashboard". */
+export interface ServiceSuggestion {
+  name: string;
+  href: string;
+  icon?: string | null;
+  description?: string | null;
+  /** gethomepage-shaped widget JSON: `{type, url}`. */
+  widget?: ({ type: string } & Record<string, unknown>) | null;
+  app_id?: string | null;
+  /** The service's favicon as a `data:` URL. */
+  favicon?: string | null;
+}
+
+/** A scan progress event (tagged by `event`). */
+export type ScanEvent =
+  | { event: "started"; addresses: number; ports: number; probes: number }
+  | { event: "progress"; done: number; total: number; open: number }
+  | { event: "port_open"; ip: string; port: number }
+  | { event: "service"; ip: string; hostname?: string | null }
+  | { event: "finished"; open?: number; identified?: number; elapsed_ms?: number };
+
+/** The running or last scan (`GET /api/scan`). */
+export interface ScanJob {
+  /** 0 when no scan has run yet. */
+  id: number;
+  running: boolean;
+  events: ScanEvent[];
+  report?: ScanReport | null;
+  /** Card suggestions keyed `ip:port`. */
+  suggestions: Record<string, ServiceSuggestion>;
+  error?: string | null;
+}
+
+/** A problem found while importing a gethomepage config. */
+export interface ImportWarning {
+  file: string;
+  path: string;
+  message: string;
+}
+
+/** Response of `POST /api/import`. */
+export interface ImportResult {
+  version: string;
+  warnings: ImportWarning[];
+}
