@@ -1,0 +1,1 @@
+{"dns_addresses": ["127.0.0.1", "192.168.1.5"], "dns_port": 53, "http_port": 3000, "protection_enabled": true, "protection_disabled_duration": 0, "dhcp_available": true, "running": true, "version": "v0.107.57", "language": "en", "start_time": 1761990000000}

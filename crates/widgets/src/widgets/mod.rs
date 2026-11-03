@@ -9,15 +9,20 @@ use std::sync::Arc;
 use crate::schema::{FieldSpec, FieldType};
 use crate::widget::Widget;
 
+pub mod adguard;
 pub mod arr;
+pub mod customapi;
+pub mod docker;
 pub mod immich;
 pub mod jellyfin;
+pub mod pihole;
 pub mod plex;
-pub mod docker;
 pub mod portainer;
 pub mod proxmox;
 pub mod qbittorrent;
 pub mod sabnzbd;
+pub mod seerr;
+pub mod uptimekuma;
 
 /// Every built-in widget.
 pub fn all() -> Vec<Arc<dyn Widget>> {
@@ -34,6 +39,13 @@ pub fn all() -> Vec<Arc<dyn Widget>> {
         Arc::new(proxmox::Proxmox),
         Arc::new(portainer::Portainer),
         Arc::new(docker::Docker),
+        Arc::new(pihole::PiHole),
+        Arc::new(adguard::AdGuard),
+        Arc::new(uptimekuma::UptimeKuma),
+        Arc::new(seerr::Overseerr),
+        Arc::new(seerr::Jellyseerr),
+        Arc::new(seerr::Seerr),
+        Arc::new(customapi::CustomApi),
     ]
 }
 
