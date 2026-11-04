@@ -5,7 +5,8 @@
 //! custom icon files under `/icons/custom` (and `/icons`), uploaded
 //! background images under `/images`, `/healthz`, `/readyz` and
 //! `/metrics` (from `homedit-ops`), and the embedded React UI for
-//! everything else (see [`assets`]).
+//! everything else (see [`assets`]). The Krifmaz kit's shared routes (health, What's new, notices, bug
+//! reports, diagnostics, settings) come from [`kit`].
 //!
 //! [`AppState`] is shared by all handlers. It holds the database, the auth
 //! state (users, sessions, the secret box), the widget registry, the
@@ -23,6 +24,7 @@ pub mod icons;
 pub mod images;
 pub mod import;
 pub mod info;
+pub mod kit;
 pub mod scan;
 pub mod schedule;
 pub mod secrets;
@@ -36,11 +38,13 @@ use std::sync::Arc;
 use anyhow::Context;
 use axum::Router;
 use axum::extract::FromRef;
+use axum::http::{HeaderName, HeaderValue};
 use homedit_auth::{AuthConfig, AuthState, secrets::SecretBox};
 use homedit_db::Db;
 use homedit_ops::{Metrics, OpsState, ReadinessCheck};
 use homedit_widgets::{ContextOptions, WidgetContext, WidgetRegistry};
 use tower_http::compression::CompressionLayer;
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 
 pub use error::ApiError;
@@ -66,6 +70,8 @@ pub struct AppState {
     pub info: Arc<info::InfoState>,
     /// Root of the data folder (database, uploads, secret key).
     pub data_dir: PathBuf,
+    /// The Krifmaz kit's state: settings, What's new, notices, bug reports (see [`kit`]).
+    pub kit: Arc<kit::Kit>,
 }
 
 impl FromRef<AppState> for AuthState {
@@ -91,10 +97,11 @@ impl AppState {
         let db = Db::open(&data_dir.join("homedit.db"))
             .await
             .context("cannot open database")?;
-        let config = AuthConfig::from_env().context("invalid auth settings")?;
+        let kit = kit::Kit::open(data_dir, |name| std::env::var(name).ok()).await?;
+        let config = kit.auth_config().context("invalid auth settings")?;
         let secret_box = SecretBox::from_env_or_file(&data_dir.join("secret.key"))
             .context("cannot load the secret key")?;
-        Self::build(db, data_dir.to_owned(), config, secret_box).await
+        Self::build(db, data_dir.to_owned(), config, secret_box, kit).await
     }
 
     /// Builds the state around an existing database with auth turned off
@@ -102,7 +109,8 @@ impl AppState {
     pub async fn with_db(db: Db, data_dir: PathBuf) -> anyhow::Result<Self> {
         let key = SecretBox::generate_key();
         let secret_box = SecretBox::from_base64(&key)?;
-        Self::build(db, data_dir, AuthConfig::default(), secret_box).await
+        let kit = kit::Kit::memory().await?;
+        Self::build(db, data_dir, AuthConfig::default(), secret_box, kit).await
     }
 
     /// Builds the state from its parts.
@@ -111,6 +119,7 @@ impl AppState {
         data_dir: PathBuf,
         config: AuthConfig,
         secret_box: SecretBox,
+        kit: kit::Kit,
     ) -> anyhow::Result<Self> {
         homedit_auth::schema::init(db.pool())
             .await
@@ -126,9 +135,10 @@ impl AppState {
             widgets: Arc::new(WidgetRegistry::builtin()),
             widget_ctx,
             metrics: Metrics::new(env!("CARGO_PKG_VERSION")),
-            scans: Arc::new(scan::ScanJobs::from_env()?),
+            scans: Arc::new(scan::ScanJobs::from_lookup(kit::lookup(&kit.settings))?),
             info: Arc::new(info::InfoState::default()),
             data_dir,
+            kit: Arc::new(kit),
         };
         secrets::seal_stored(&state).await?;
         Ok(state)
@@ -160,12 +170,15 @@ pub fn app(state: AppState) -> Router {
                     .map_err(|e| e.to_string())
             }
         }))
-        .with_metrics_token(std::env::var("HOMEDIT_METRICS_TOKEN").ok());
+        .with_metrics_token(
+            Some(state.kit.settings.str("metrics_token")).filter(|t| !t.trim().is_empty()),
+        );
     Router::new()
         .nest(
             "/api/auth",
             homedit_auth::routes::router().with_state(state.auth.clone()),
         )
+        .merge(kit::router())
         .nest("/api", api::router())
         .nest("/icons/custom", icons::serve_router(&state.icon_dir()))
         // gethomepage serves `public/icons` at `/icons/`; serving the same
@@ -183,6 +196,12 @@ pub fn app(state: AppState) -> Router {
             homedit_ops::track_http,
         ))
         .layer(CompressionLayer::new())
+        // Marks every answer as homedit's own, so the web app tells a proxy's error page (a 502 while the
+        // server restarts) from the server's answers (the kit's update and offline rules read it).
+        .layer(SetResponseHeaderLayer::overriding(
+            HeaderName::from_static("x-homedit"),
+            HeaderValue::from_static("1"),
+        ))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }

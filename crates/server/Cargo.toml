@@ -23,6 +23,13 @@ homedit-import.workspace = true
 homedit-ops.workspace = true
 homedit-scanner.workspace = true
 homedit-widgets.workspace = true
+kit-server-core.workspace = true
+kit-server-health.workspace = true
+kit-server-changelog = { workspace = true, features = ["server"] }
+kit-server-notices.workspace = true
+kit-server-bugreports.workspace = true
+kit-server-diagnostics.workspace = true
+kit-server-settings = { workspace = true, features = ["toml", "server"] }
 sqlx.workspace = true
 mime_guess.workspace = true
 reqwest.workspace = true
@@ -37,6 +44,10 @@ tokio-stream.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+[build-dependencies]
+kit-server-settings = { workspace = true, features = ["toml"] }
+kit-server-changelog.workspace = true
 
 [dev-dependencies]
 http-body-util.workspace = true
