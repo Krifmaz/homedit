@@ -1,10 +1,11 @@
 /**
- * Drawer form for dashboard-wide settings: title, theme, accent colour,
- * background, search and custom CSS.
+ * Drawer form for dashboard-wide appearance settings: title, theme, accent
+ * colour, background image, card style, search and custom CSS.
  */
 import { useId } from "react";
 import type { Background, SearchSettings, Settings, ThemeMode } from "../../api/types";
 import { updateSettings } from "../ops";
+import { BackgroundPicker } from "./BackgroundPicker";
 import { useFormSession } from "./useFormSession";
 import "./forms.css";
 
@@ -15,7 +16,7 @@ export interface SettingsFormProps {
 }
 
 /** Background used when the admin turns the background image on. */
-const NEW_BACKGROUND: Background = { url: "", blur: 0, opacity: 1 };
+const NEW_BACKGROUND: Background = { url: "", blur: 0, opacity: 1, saturate: 100, brightness: 100 };
 
 /** Accepts `#rgb` and `#rrggbb` hex colours, the values `<input type=color>` understands. */
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -62,7 +63,7 @@ export function SettingsForm({ onClose }: SettingsFormProps) {
         session.done();
       }}
     >
-      <h2>Settings</h2>
+      <h2>Appearance</h2>
 
       <div className="field">
         <label htmlFor={`${uid}-title`}>Title</label>
@@ -114,61 +115,76 @@ export function SettingsForm({ onClose }: SettingsFormProps) {
       </div>
 
       <fieldset className="form-section">
-        <legend>Background</legend>
+        <legend>Background image</legend>
         <div className="field field-inline">
           <input
-            id={`${uid}-nobg`}
+            id={`${uid}-usebg`}
             type="checkbox"
-            checked={bg === null}
-            onChange={(e) => set({ background: e.target.checked ? null : { ...NEW_BACKGROUND } })}
+            checked={bg !== null}
+            onChange={(e) => set({ background: e.target.checked ? { ...NEW_BACKGROUND } : null })}
           />
-          <label htmlFor={`${uid}-nobg`}>No background</label>
+          <label htmlFor={`${uid}-usebg`}>Show a background image</label>
         </div>
         {bg && (
           <>
-            <div className="field">
-              <label htmlFor={`${uid}-bgurl`}>Image URL</label>
-              <input
-                id={`${uid}-bgurl`}
-                type="url"
-                spellCheck={false}
-                placeholder="https://… or /icons/custom/…"
-                value={bg.url}
-                onChange={(e) => setBg({ url: e.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`${uid}-blur`}>Blur (px)</label>
-              <div className="field-inline">
-                <input
-                  id={`${uid}-blur`}
-                  type="range"
-                  min={0}
-                  max={30}
-                  step={1}
-                  value={bg.blur}
-                  onChange={(e) => setBg({ blur: clamp(e.target.valueAsNumber, 0, 30, 0) })}
-                />
-                <output htmlFor={`${uid}-blur`}>{bg.blur}</output>
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor={`${uid}-opacity`}>Opacity</label>
-              <div className="field-inline">
-                <input
-                  id={`${uid}-opacity`}
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={bg.opacity}
-                  onChange={(e) => setBg({ opacity: clamp(e.target.valueAsNumber, 0, 1, 1) })}
-                />
-                <output htmlFor={`${uid}-opacity`}>{Math.round(bg.opacity * 100)}%</output>
-              </div>
-            </div>
+            <BackgroundPicker value={bg} onChange={setBg} />
+            <Slider
+              id={`${uid}-blur`}
+              label="Blur (px)"
+              min={0}
+              max={30}
+              step={1}
+              value={bg.blur}
+              shown={String(bg.blur)}
+              onChange={(v) => setBg({ blur: clamp(v, 0, 30, 0) })}
+            />
+            <Slider
+              id={`${uid}-opacity`}
+              label="Opacity"
+              min={0}
+              max={1}
+              step={0.05}
+              value={bg.opacity}
+              shown={`${Math.round(bg.opacity * 100)}%`}
+              onChange={(v) => setBg({ opacity: clamp(v, 0, 1, 1) })}
+            />
+            <Slider
+              id={`${uid}-saturate`}
+              label="Saturation"
+              min={0}
+              max={200}
+              step={5}
+              value={bg.saturate}
+              shown={`${bg.saturate}%`}
+              onChange={(v) => setBg({ saturate: clamp(v, 0, 200, 100) })}
+            />
+            <Slider
+              id={`${uid}-brightness`}
+              label="Brightness"
+              min={0}
+              max={200}
+              step={5}
+              value={bg.brightness}
+              shown={`${bg.brightness}%`}
+              onChange={(v) => setBg({ brightness: clamp(v, 0, 200, 100) })}
+            />
           </>
         )}
+      </fieldset>
+
+      <fieldset className="form-section">
+        <legend>Cards</legend>
+        <Slider
+          id={`${uid}-cardblur`}
+          label="Frosted glass blur (px)"
+          min={0}
+          max={40}
+          step={1}
+          value={settings.cardBlur}
+          shown={settings.cardBlur > 0 ? String(settings.cardBlur) : "Off"}
+          help="Makes cards see-through with a blur, which looks best over a background image."
+          onChange={(v) => set({ cardBlur: clamp(v, 0, 40, 0) })}
+        />
       </fieldset>
 
       <fieldset className="form-section">
@@ -244,5 +260,46 @@ export function SettingsForm({ onClose }: SettingsFormProps) {
         </button>
       </div>
     </form>
+  );
+}
+
+/** Props of {@link Slider}. */
+interface SliderProps {
+  id: string;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  /** Text shown next to the slider. */
+  shown: string;
+  help?: string;
+  onChange(value: number): void;
+}
+
+/** A labelled range input with its current value. */
+function Slider({ id, label, min, max, step, value, shown, help, onChange }: SliderProps) {
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <div className="field-inline">
+        <input
+          id={id}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          aria-describedby={help ? `${id}-help` : undefined}
+          onChange={(e) => onChange(e.target.valueAsNumber)}
+        />
+        <output htmlFor={id}>{shown}</output>
+      </div>
+      {help && (
+        <span id={`${id}-help`} className="field-help">
+          {help}
+        </span>
+      )}
+    </div>
   );
 }

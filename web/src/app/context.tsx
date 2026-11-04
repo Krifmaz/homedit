@@ -126,6 +126,7 @@ export function AppProvider({ api, initial = null, children }: AppProviderProps)
           theme: "system",
           accent: "#3b6fd8",
           background: null,
+          cardBlur: 0,
           customCss: "",
           search: { provider: "duckduckgo" },
         },

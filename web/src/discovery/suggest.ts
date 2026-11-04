@@ -99,3 +99,24 @@ export function parseTargets(text: string): string[] {
     .map((t) => t.trim())
     .filter(Boolean);
 }
+
+/** A bare IPv4 address whose last octet is 0, such as `10.0.1.0`. */
+const NETWORK_ADDRESS = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.0$/;
+
+/**
+ * Targets that look like a network written without its prefix length
+ * (`10.0.1.0` rather than `10.0.1.0/24`). Scanning one of those checks just
+ * that single, usually unused, address.
+ */
+export function bareNetworks(text: string): string[] {
+  return parseTargets(text).filter((t) => {
+    const m = NETWORK_ADDRESS.exec(t);
+    return m !== null && m.slice(1).every((o) => Number(o) <= 255);
+  });
+}
+
+/** Rewrites every bare network address in `text` as a /24 range. */
+export function widenBareNetworks(text: string): string {
+  const bare = new Set(bareNetworks(text));
+  return text.replace(/[^\s,]+/g, (t) => (bare.has(t) ? `${t}/24` : t));
+}

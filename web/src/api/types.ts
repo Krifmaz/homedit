@@ -70,6 +70,18 @@ export interface Background {
   blur: number;
   /** Opacity of the image from 0 to 1. */
   opacity: number;
+  /** Saturation in percent; 100 leaves the image unchanged, 0 is greyscale. */
+  saturate: number;
+  /** Brightness in percent; 100 leaves the image unchanged. */
+  brightness: number;
+}
+
+/** An uploaded background image (`GET /api/images`). */
+export interface ImageFile {
+  /** File name inside the server's images folder. */
+  name: string;
+  /** URL to use as the background, e.g. `/images/wall.jpg`. */
+  url: string;
 }
 
 /** Web search configuration for the search bar. */
@@ -90,6 +102,8 @@ export interface Settings {
   accent: string;
   /** Background image, if any. */
   background: Background | null;
+  /** Frosted-glass blur behind cards in pixels; 0 keeps cards solid. */
+  cardBlur: number;
   /** Extra CSS appended after the built-in styles. */
   customCss: string;
   /** Search bar configuration. */

@@ -13,6 +13,8 @@
 //! | POST   | `/api/history/{version}/restore`  | admin  | Restore a saved version         |
 //! | GET    | `/api/icons?q=`                   | admin  | Icon search                     |
 //! | POST   | `/api/icons`                      | admin  | Icon upload (multipart `file`)  |
+//! | GET    | `/api/images`                     | admin  | Uploaded background images      |
+//! | POST   | `/api/images`                     | admin  | Image upload (multipart `file`) |
 //!
 //! JSON shapes are documented in [`crate::view`].
 
@@ -34,7 +36,7 @@ use crate::auth::{RequireAdmin, RequireViewer};
 use crate::status::LiveEvent;
 use crate::view::{self, DocView, Mode};
 use crate::{
-    ApiError, AppState, docs, export, icons, import, info, scan, schedule, secrets, widgets,
+    ApiError, AppState, docs, export, icons, images, import, info, scan, schedule, secrets, widgets,
 };
 
 /// Number of history entries returned by `/api/history`.
@@ -52,6 +54,7 @@ pub fn router() -> Router<AppState> {
         .route("/history/{version}", get(history_get))
         .route("/history/{version}/restore", post(history_restore))
         .route("/icons", get(icons::search).post(icons::upload))
+        .route("/images", images::api_route())
         .route("/widgets/catalog", get(widgets::catalog))
         .route("/widgets/test", post(widgets::test))
         .route("/widgets/{id}/data", get(widgets::data))

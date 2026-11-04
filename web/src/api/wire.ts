@@ -86,6 +86,18 @@ export function blurToPx(v: unknown): number {
   return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
 
+/** Reads a stored percentage (0 to 200), defaulting to 100 (unchanged). */
+function percentOr100(v: unknown): number {
+  const n = num(v);
+  return n === undefined ? 100 : Math.min(200, Math.max(0, Math.round(n)));
+}
+
+/** Writes a percentage, leaving out the default so stored configs stay small. */
+function wirePercent(n: number): number | null {
+  const v = Math.round(Math.min(200, Math.max(0, n)));
+  return v === 100 ? null : v;
+}
+
 /** Ids the server assigned are integers; anything else was minted in the UI. */
 export function toWireId(id: string | undefined): number | null {
   return id && /^\d+$/.test(id) ? Number(id) : null;
@@ -109,6 +121,8 @@ export function settingsFromWire(v: unknown): Settings {
       url: str(s.background.url)!,
       blur: blurToPx(s.background.blur),
       opacity: op === undefined ? 1 : Math.min(1, Math.max(0, op / 100)),
+      saturate: percentOr100(s.background.saturate),
+      brightness: percentOr100(s.background.brightness),
     };
   }
   let search: SearchSettings = { provider: "duckduckgo" };
@@ -128,6 +142,7 @@ export function settingsFromWire(v: unknown): Settings {
     theme: theme === "light" || theme === "dark" ? theme : "system",
     accent,
     background,
+    cardBlur: blurToPx(s.cardBlur ?? 0),
     customCss: str(s.customCss) ?? "",
     search,
   };
@@ -144,8 +159,11 @@ export function settingsToWire(s: Settings): Obj {
           url: s.background.url,
           blur: s.background.blur > 0 ? `${Math.round(s.background.blur)}px` : null,
           opacity: Math.round(Math.min(1, Math.max(0, s.background.opacity)) * 100),
+          saturate: wirePercent(s.background.saturate),
+          brightness: wirePercent(s.background.brightness),
         }
       : null,
+    cardBlur: s.cardBlur > 0 ? `${Math.round(s.cardBlur)}px` : null,
     customCss: s.customCss || null,
     search:
       s.search.provider === "custom"

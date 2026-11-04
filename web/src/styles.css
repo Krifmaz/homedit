@@ -50,10 +50,16 @@
   box-sizing: border-box;
 }
 
+/* Only <html> gets the page colour: it paints the canvas underneath
+   everything, so the fixed background image (z-index -1) stays visible.
+   A background on <body> would be painted over that image. */
+html {
+  background: var(--bg);
+}
+
 html,
 body {
   margin: 0;
-  background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   font-size: 15px;
@@ -346,6 +352,13 @@ textarea {
   flex-direction: column;
   gap: 8px;
   min-height: 64px;
+}
+
+/* Frosted-glass cards (gethomepage `cardBlur`). */
+:root[data-card-blur] .card {
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  backdrop-filter: blur(var(--card-blur));
 }
 
 a.card:hover {
@@ -728,6 +741,18 @@ a.card:hover {
 
 .scan-targets {
   min-height: 70px;
+}
+
+.scan-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: 0.9em;
 }
 
 .scan-progress {
