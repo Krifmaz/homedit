@@ -14,28 +14,25 @@
 # user.
 
 ARG RUST_VERSION=1.99.1
-ARG NODE_VERSION=24
+ARG TRUNK_VERSION=0.22.1
 ARG ZIGBUILD_VERSION=0.23.4
 
 # ---------------------------------------------------------------------------
-# 1. Web UI (React + Vite). Platform independent, so it runs natively.
+# 1. Web UI (Leptos, built to WebAssembly by trunk). Platform independent, so
+#    it runs natively.
 # ---------------------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
+FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim AS web
+ARG TRUNK_VERSION
+ARG BUILDARCH
+RUN rustup target add wasm32-unknown-unknown && \
+    case "$BUILDARCH" in amd64) a=x86_64 ;; arm64) a=aarch64 ;; *) echo "unsupported: $BUILDARCH" >&2; exit 1 ;; esac && \
+    wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-${a}-unknown-linux-gnu.tar.gz" \
+        | tar -xz -C /usr/local/bin trunk
 WORKDIR /web
-# Install dependencies first so the layer is cached until the lockfile
-# changes. The bind mount means the build works before web/ has a
-# package.json (the placeholder web/dist is used as-is then).
-RUN --mount=type=bind,source=web,target=/src \
-    --mount=type=cache,target=/root/.npm \
-    if [ -f /src/package.json ]; then \
-        cp /src/package.json /src/package-lock.json* ./ && \
-        if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; \
-        else npm install --no-audit --no-fund; fi; \
-    fi
 COPY web/ ./
-RUN if [ -f package.json ]; then npm run build; fi && \
-    mkdir -p dist && \
-    test -n "$(ls -A dist)" || touch dist/.gitkeep
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/web/target,id=homedit-web-target,sharing=locked \
+    trunk build --release --locked
 
 # ---------------------------------------------------------------------------
 # 2. Rust server, cross-compiled to a static musl binary.

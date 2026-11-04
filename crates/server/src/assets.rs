@@ -1,7 +1,7 @@
-//! The embedded React UI.
+//! The embedded web app (Leptos, built with trunk).
 //!
 //! Files under `web/dist` are compiled into the binary (in debug builds they
-//! are read from disk, so a running `vite build --watch` is picked up).
+//! are read from disk, so a running `trunk watch` is picked up).
 //! Unknown paths outside `/api` fall back to `index.html` so client-side
 //! routes work. Before `index.html` is sent, the literal placeholder
 //! `<!--HOMEDIT_DATA-->` is replaced with the dashboard view as JSON in a
@@ -36,9 +36,23 @@ pub const DATA_PLACEHOLDER: &str = "<!--HOMEDIT_DATA-->";
 const FALLBACK_INDEX: &str = r#"<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>homedit</title></head><body>
-<p>The homedit UI was not built into this binary. Run <code>npm ci &amp;&amp; npm run build</code> in <code>web/</code> and rebuild.
+<p>The homedit UI was not built into this binary. Run <code>trunk build --release</code> in <code>web/</code> and rebuild.
 The API is available under <a href="/api/dashboard">/api/dashboard</a>.</p>
 <!--HOMEDIT_DATA--></body></html>"#;
+
+/// Whether `path` is a content-hashed build file (`homedit-web-95cfe6341464ca32_bg.wasm`, `kit-82004c4d8c6d7454.css`).
+pub fn is_hashed(path: &str) -> bool {
+    let stem = path
+        .rsplit('/')
+        .next()
+        .unwrap_or(path)
+        .split('.')
+        .next()
+        .unwrap_or("");
+    let stem = stem.strip_suffix("_bg").unwrap_or(stem);
+    stem.rsplit_once('-')
+        .is_some_and(|(_, h)| h.len() == 16 && h.bytes().all(|b| b.is_ascii_hexdigit()))
+}
 
 /// Serves a static file, or `index.html` with inlined data.
 pub async fn serve(State(state): State<AppState>, user: CurrentUser, uri: Uri) -> Response {
@@ -55,8 +69,8 @@ pub async fn serve(State(state): State<AppState>, user: CurrentUser, uri: Uri) -
         if let Ok(v) = HeaderValue::from_str(mime) {
             resp.headers_mut().insert(header::CONTENT_TYPE, v);
         }
-        // Vite puts content-hashed files under assets/.
-        let cache = if path.starts_with("assets/") {
+        // trunk names its files `<name>-<hash>.<ext>`: those never change.
+        let cache = if is_hashed(path) {
             "public, max-age=31536000, immutable"
         } else {
             "public, max-age=3600"
@@ -129,6 +143,16 @@ pub fn inline_json(data: &serde_json::Value) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hashed_build_files() {
+        assert!(is_hashed("homedit-web-95cfe6341464ca32_bg.wasm"));
+        assert!(is_hashed("homedit-web-f00a18ee2ea72b1a.js"));
+        assert!(is_hashed("kit-82004c4d8c6d7454.css"));
+        assert!(!is_hashed("favicon.svg"));
+        assert!(!is_hashed("index.html"));
+        assert!(!is_hashed("my-photo.png"));
+    }
 
     #[test]
     fn inline_json_cannot_break_out() {

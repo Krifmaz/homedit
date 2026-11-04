@@ -51,29 +51,34 @@ jobs:
         run: cargo doc --workspace --no-deps --locked
 
   web:
-    name: Web UI (lint, test, build)
+    name: Web UI (fmt, clippy, test, build)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v5
-      - name: Check for the web project
-        id: web
-        run: |
-          if [ -f web/package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
-      - uses: actions/setup-node@v5
-        if: steps.web.outputs.present == 'true'
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Install, lint, test and build
-        if: steps.web.outputs.present == 'true'
-        working-directory: web
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: web
+      - name: The kit's stylesheets match the pinned kit
+        run: ../scripts/kit-css-check.sh
+      - name: cargo fmt
+        run: cargo fmt -- --check
+      - name: cargo clippy (wasm)
+        run: cargo clippy --locked --target wasm32-unknown-unknown -- -D warnings
+      - name: cargo test
+        run: cargo test --locked
+      - name: Install trunk
         run: |
-          npm ci --no-audit --no-fund
-          npm run lint --if-present
-          npm run typecheck --if-present
-          npm test --if-present
-          npm run build
+          curl -sSfL "https://github.com/trunk-rs/trunk/releases/download/v0.22.1/trunk-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz -C "$HOME/.cargo/bin" trunk
+      - name: trunk build
+        run: trunk build --release --locked
 
   deny:
     name: Licences and advisories

@@ -1,7 +1,7 @@
 # Keep the build context small and free of local state.
 target/
 **/target/
-web/node_modules/
+web/dist/
 data/
 *.db
 *.db-*

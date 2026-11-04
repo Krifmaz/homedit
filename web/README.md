@@ -1,45 +1,50 @@
 # homedit web UI
 
-The browser side of homedit: React 19, TypeScript and Vite. The production
-build in `web/dist` is embedded into the `homedit` binary with rust-embed, so
+The browser side of homedit: [Leptos](https://leptos.dev) 0.8 (client-side, WebAssembly) on the
+[Krifmaz kit](https://github.com/Krifmaz/kit)'s components and Encore look, built by
+[trunk](https://trunkrs.dev). The build in `web/dist` is embedded into the `homedit` binary with rust-embed, so
 the Docker image ships a single executable.
+
+It is a Cargo workspace of its own, so the server's workspace never builds WebAssembly.
 
 ## Develop
 
 ```sh
+rustup target add wasm32-unknown-unknown
+cargo install trunk --locked     # or a release binary from github.com/trunk-rs/trunk
 cd web
-npm ci
-npm run dev:mock      # in-browser mock API, no backend needed: http://localhost:5173/
-npm run dev           # proxies /api and /icons to a backend on 127.0.0.1:3000
+trunk watch --release            # rebuilds web/dist; a debug server reads it from disk
 ```
 
-In mock mode, add `?role=viewer` to the URL to see the dashboard as a viewer.
-Any build also switches to the mock when the URL has `?mock`.
+Run the server next to it (`cargo run -p homedit` in the repository root) and open http://localhost:3000/.
 
 ## Check
 
 ```sh
-npm run typecheck
-npm run lint
-npm run format:check
-npm test
-npm run build         # writes web/dist
+cd web
+cargo fmt -- --check
+cargo clippy --target wasm32-unknown-unknown -- -D warnings
+cargo test                       # the pure parts (model, edits, undo, drag and drop, words) run natively
+trunk build --release            # writes web/dist
+../scripts/kit-css-check.sh      # the kit's stylesheets match the pinned kit (--fix copies them)
 ```
 
 ## How it fits together
 
-| Path                          | What it does                                                       |
-| ----------------------------- | ------------------------------------------------------------------ |
-| `src/api/types.ts`            | Types of the REST API (the contract shared with the Rust server)   |
-| `src/api/client.ts`           | `Api` interface and the `fetch` implementation (CSRF, `If-Match`)  |
-| `src/api/mock.ts`             | In-memory `Api` with sample data, used by `dev:mock` and the tests |
-| `src/app/context.tsx`         | App state: session, document, live status, editor and undo/redo    |
-| `src/app/App.tsx`             | Shell: header, search, info widgets, dashboard, toolbar, drawer    |
-| `src/components/`             | Dashboard, cards, status sparkline, bookmarks, search, widgets     |
-| `src/editor/ops.ts`           | Pure edit operations on the config document                        |
-| `src/editor/history.ts`       | Undo/redo reducer (edits with one coalesce key form one step)      |
-| `src/editor/forms/`           | Drawer forms, generated from widget schemas where possible         |
-| `src/editor/HistoryPanel.tsx` | Saved versions with a diff summary and one-click restore           |
+| Path | What it does |
+| --- | --- |
+| `src/main.rs` | Start-up: the kit's config, API client, crash logs, toasts, notices, offline banner, self-update |
+| `src/client.rs` | homedit's API calls on the kit's client (CSRF and `If-Match` headers), the live events |
+| `src/model.rs` | The API's shapes (session, dashboard, config document, statuses) |
+| `src/state.rs` | App state: session, document, live status, editor and undo/redo, the open drawer |
+| `src/shell.rs` | The page: header, search, info widgets, dashboard, toolbar, drawer, account menu, routes |
+| `src/dash.rs`, `src/widgets.rs` | Groups, cards, status sparklines, bookmarks; card widgets and the info strip |
+| `src/ops.rs`, `src/undo.rs` | Pure edits on the config document; undo/redo (one coalesce key, one step) |
+| `src/dnd.rs` | Drag and drop of cards, groups and bookmarks (mouse, touch from the handle, Alt+arrows) |
+| `src/forms.rs`, `src/appearance.rs` | Drawer forms (widget fields from the catalogue's schemas), appearance, info widgets |
+| `src/panels.rs`, `src/scan.rs`, `src/backup.rs` | History, accounts, password; Find services; import and export |
+| `src/kitpages.rs` | The kit's pages: Settings (from the server's schema), Diagnostics, What's new, Bug reports |
+| `static/css/` | The kit's `tokens.css` and `kit.css`, the template's `app.css` (copies), then `homedit.css` |
 
 ### First paint
 
@@ -54,8 +59,8 @@ Admins get an **Edit** button. Edit mode loads `/api/config` (which includes
 groups hidden from viewers) and the widget catalogue. Every change is applied
 to a working copy shown live on the dashboard:
 
-- Drag cards within and between groups, reorder groups and bookmarks
-  (mouse, touch, or keyboard: focus a card, press Space, use the arrow keys).
+- Drag cards within and between groups, reorder groups and bookmarks (mouse;
+  touch from the ⠿ handle; keyboard: focus a card and press Alt+arrow keys).
 - Forms open in a side drawer; the dashboard previews each keystroke. A whole
   form session is one undo step, and **Cancel** reverts it.
 - Undo and redo with the toolbar or Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y.

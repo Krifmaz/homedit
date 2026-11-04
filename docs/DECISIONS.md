@@ -2,6 +2,16 @@
 
 Non-obvious calls made while building homedit, newest first.
 
+## 2026-11-04: Move the web app to Leptos on the kit
+
+- The web app moved from React to Leptos (the owner's call), so the kit's Leptos components are used as they are instead of copied into TypeScript. It is a Cargo workspace of its own in `web/`, so the server's `cargo test --workspace` never builds WebAssembly.
+- The kit's `tokens.css` and `kit.css` and the template's `app.css` are copied into `web/static/css` the way the kit's template does it, and CI (`scripts/kit-css-check.sh`) fails when they drift from the pinned kit tag.
+- Crash logs for the web app went into the kit (`kit_leptos::crash`), not homedit, since every kit web app needs them and the server side was already there.
+- The self-update waits while edit mode is open (not only with unsaved changes), so a new build never closes an open form.
+- Keyboard reordering is Alt+arrow keys on a focused card, group or bookmark (the React app used Space then arrows); touch drags start only from the ⠿ handle so the page still scrolls.
+- The web app's version follows the server's: the release workflow bumps `web/Cargo.toml` too.
+- The /24 question before a scan of a bare network address (from #23) is now the kit's confirm dialog, like the "all 65,535 ports" one: OK scans the /24, "Scan as typed" scans the single address.
+
 ## 2026-11-04: Adopt the Krifmaz kit on the server
 
 - The kit's tables live in their own `kit.db` in the data folder, not in `homedit.db`: the kit opens its file with rusqlite and runs its own migrations, homedit runs sqlx's, and two migrators on one file would fight over locks for nothing.

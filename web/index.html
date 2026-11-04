@@ -1,18 +1,28 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
-    <!-- Image hosts often refuse requests that name another site as the
-         referrer (hotlink protection); sending none lets those images load. -->
-    <meta name="referrer" content="no-referrer" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <title>homedit</title>
-  </head>
-  <body>
-    <!--HOMEDIT_DATA-->
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <!-- the app's name: the kit reads it from here -->
+  <meta name="application-name" content="homedit">
+  <!-- Image hosts often refuse requests that name another site as the referrer (hotlink protection); sending
+       none lets those images load. -->
+  <meta name="referrer" content="no-referrer">
+  <title>homedit</title>
+  <link data-trunk rel="copy-file" href="public/favicon.svg">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <!-- the kit's colour tokens, the kit's components, the template's shell, then homedit's own rules -->
+  <link data-trunk rel="css" href="static/css/tokens.css">
+  <link data-trunk rel="css" href="static/css/kit.css">
+  <link data-trunk rel="css" href="static/css/app.css">
+  <link data-trunk rel="css" href="static/css/homedit.css">
+  <link data-trunk rel="rust" data-wasm-opt="z" data-bin="homedit-web">
+</head>
+<body>
+  <!--HOMEDIT_DATA-->
+  <div id="app"></div>
+  <div id="toasts"></div>
+  <div id="modal-root"></div>
+</body>
 </html>
