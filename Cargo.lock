@@ -1377,7 +1377,7 @@ dependencies = [
 
 [[package]]
 name = "homedit"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1418,7 +1418,7 @@ dependencies = [
 
 [[package]]
 name = "homedit-auth"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -1447,7 +1447,7 @@ dependencies = [
 
 [[package]]
 name = "homedit-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1457,7 +1457,7 @@ dependencies = [
 
 [[package]]
 name = "homedit-db"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "homedit-core",
  "serde",
@@ -1470,7 +1470,7 @@ dependencies = [
 
 [[package]]
 name = "homedit-discovery"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "homedit-core",
  "homedit-import",
@@ -1488,7 +1488,7 @@ dependencies = [
 
 [[package]]
 name = "homedit-import"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "homedit-core",
  "serde",
@@ -1500,7 +1500,7 @@ dependencies = [
 
 [[package]]
 name = "homedit-ops"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "axum",
  "futures",
@@ -1515,7 +1515,7 @@ dependencies = [
 
 [[package]]
 name = "homedit-scanner"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.23.1",
  "ipnet",
@@ -1533,7 +1533,7 @@ dependencies = [
 
 [[package]]
 name = "homedit-widgets"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "reqwest",
