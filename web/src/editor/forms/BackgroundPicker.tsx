@@ -17,6 +17,11 @@ export interface BackgroundPickerProps {
   onChange(patch: Partial<Background>): void;
 }
 
+/** Whether `url` points at another website rather than this server. */
+export function isExternalUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url.trim());
+}
+
 /** URL field, preview, upload and uploaded-image gallery. */
 export function BackgroundPicker({ value, onChange }: BackgroundPickerProps) {
   const { api } = useApp();
@@ -25,6 +30,37 @@ export function BackgroundPicker({ value, onChange }: BackgroundPickerProps) {
   const [images, setImages] = useState<ImageFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  /** URL whose image failed to load in the browser. */
+  const [broken, setBroken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = value.url.trim();
+    if (!url) return;
+    let alive = true;
+    const probe = new Image();
+    probe.referrerPolicy = "no-referrer";
+    probe.onload = () => alive && setBroken((b) => (b === url ? null : b));
+    probe.onerror = () => alive && setBroken(url);
+    probe.src = url;
+    return () => {
+      alive = false;
+    };
+  }, [value.url]);
+
+  const saveCopy = async () => {
+    setSaving(true);
+    try {
+      const image = await api.fetchImage(value.url.trim());
+      setImages((list) => [...list.filter((i) => i.name !== image.name), image]);
+      onChange({ url: image.url });
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -102,6 +138,19 @@ export function BackgroundPicker({ value, onChange }: BackgroundPickerProps) {
           {uploading ? "Uploading…" : "Upload"}
         </button>
       </div>
+      {isExternalUrl(value.url) && (
+        <div className="bg-external">
+          {broken === value.url.trim() && (
+            <span className="field-error" role="alert">
+              This image did not load. The site may block showing its images elsewhere; a copy on
+              this server avoids that.
+            </span>
+          )}
+          <button type="button" className="btn" disabled={saving} onClick={() => void saveCopy()}>
+            {saving ? "Saving…" : "Save a copy on this server"}
+          </button>
+        </div>
+      )}
       <span id={`${id}-help`} className="field-help">
         Uploads are kept in the data folder under images/ and served at /images/. Files copied there
         from gethomepage&apos;s public/images work as they did before.

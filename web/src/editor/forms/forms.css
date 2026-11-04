@@ -147,3 +147,10 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+.bg-external {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}

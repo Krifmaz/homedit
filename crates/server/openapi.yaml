@@ -365,6 +365,25 @@ paths:
                 file: { type: string, format: binary }
       responses:
         "200": { description: "The stored image: {name, url}" }
+  /api/images/fetch:
+    post:
+      tags: [icons]
+      summary: Save a copy of an image from a URL (admin, at most 20 MB)
+      description: |
+        Downloads the image server-side into `$HOMEDIT_DATA_DIR/images`.
+        Use it for hosts that refuse hotlinked images. Only the URL's own
+        host is contacted; cloud metadata addresses are refused.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+      responses:
+        "200": { description: "The stored image: {name, url}" }
+        "400": { description: Not an image, too large, or the host refused }
   /api/import:
     post:
       tags: [backup]

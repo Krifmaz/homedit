@@ -15,6 +15,7 @@
 //! | POST   | `/api/icons`                      | admin  | Icon upload (multipart `file`)  |
 //! | GET    | `/api/images`                     | admin  | Uploaded background images      |
 //! | POST   | `/api/images`                     | admin  | Image upload (multipart `file`) |
+//! | POST   | `/api/images/fetch`               | admin  | Save an image from a URL        |
 //!
 //! JSON shapes are documented in [`crate::view`].
 
@@ -55,6 +56,7 @@ pub fn router() -> Router<AppState> {
         .route("/history/{version}/restore", post(history_restore))
         .route("/icons", get(icons::search).post(icons::upload))
         .route("/images", images::api_route())
+        .route("/images/fetch", post(images::fetch))
         .route("/widgets/catalog", get(widgets::catalog))
         .route("/widgets/test", post(widgets::test))
         .route("/widgets/{id}/data", get(widgets::data))
