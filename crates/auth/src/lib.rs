@@ -57,6 +57,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+/// This build's version: `HOMEDIT_VERSION` at build time (the release sets it), else Cargo.toml's.
+pub const VERSION: &str = match option_env!("HOMEDIT_VERSION") {
+    Some(v) => v,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 pub mod client_ip;
 pub mod config;
 pub mod csrf;

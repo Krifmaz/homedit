@@ -1,29 +1,30 @@
-# Automatic releases.
+# Releases, on the Krifmaz kit's shared workflows.
 #
-# After CI passes on a push to main, this workflow:
-#   1. works out the next version from the commits since the last tag
-#      (scripts/next-version.sh: feat -> minor, breaking -> major/minor on
-#      0.x, anything else -> patch; the first release uses Cargo.toml as is),
-#   2. bumps `[workspace.package] version` and Cargo.lock, commits
-#      `chore(release): vX.Y.Z` and pushes it with the `vX.Y.Z` tag,
-#   3. builds and pushes the amd64 + arm64 image as `X.Y.Z`, `X.Y` and
-#      `latest` (plus `X` from 1.0 on),
-#   4. creates a GitHub Release with grouped notes, static binaries for both
-#      architectures (taken from the image) and SHA256SUMS.
+# Every push to main makes a normal vX.Y.Z release (never a pre-release):
+#   1. test:    the kit's checks (kit-ci), the same as CI's,
+#   2. prepare: the version (kit-release): PATCH by default, MINOR or MAJOR when
+#      the merge added docs/releases/<that version>.md,
+#   3. docker:  the amd64 + arm64 image on GHCR as `X.Y.Z`, `X.Y` and `latest`
+#      (kit-docker), with the version built in as HOMEDIT_VERSION,
+#   4. publish: the GitHub Release (kit-release) with docs/releases/<version>.md
+#      as its notes (else the commits since the last release), the static
+#      binaries for both architectures taken from the image, and SHA256SUMS.
 #
 # Run it by hand (Actions > Release > Run workflow) to release the current
-# main, optionally with an explicit version.
+# main, optionally with a bump or an explicit version.
 name: Release
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
   workflow_dispatch:
     inputs:
+      bump:
+        description: "auto (PATCH, or MINOR/MAJOR from docs/releases/<version>.md), patch, minor or major"
+        required: false
+        default: auto
       version:
-        description: "Version to release (X.Y.Z). Empty = computed from commits."
+        description: "Version to release (X.Y.Z). Empty = from bump."
         required: false
 
 permissions:
@@ -35,141 +36,64 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Tag, image and GitHub Release
+  test:
+    uses: Krifmaz/kit/.github/workflows/kit-ci.yml@v0.2.0
+    with:
+      rust-dirs: .
+      wasm-dirs: web
+      check: scripts/kit-css-check.sh
+
+  prepare:
+    needs: test
+    uses: Krifmaz/kit/.github/workflows/kit-release.yml@v0.2.0
+    with:
+      stage: prepare
+      app-name: homedit
+      bump: ${{ inputs.bump || 'auto' }}
+      version: ${{ inputs.version || '' }}
+
+  # `X.Y` beside the kit's `X.Y.Z` and `latest`, so `ghcr.io/…/homedit:0.3` follows patch releases.
+  tags:
+    needs: prepare
     runs-on: ubuntu-latest
-    # Only after a green CI run for a push to main (not PRs or tags).
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push')
+    outputs:
+      minor: ${{ steps.t.outputs.minor }}
     steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: main
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Work out the version
-        id: version
+      - id: t
         env:
-          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-          # Release exactly the commit CI tested. If main has moved on, the
-          # newer commit's own CI run will release it instead.
-          if [[ -n "${RUN_SHA:-}" && "$(git rev-parse HEAD)" != "$RUN_SHA" ]]; then
-            echo "main moved past ${RUN_SHA}; skipping"
-            echo "version=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [[ "$(git log -1 --format=%s)" == chore\(release\)* ]]; then
-            echo "head is a release commit; skipping"
-            echo "version=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          version="${INPUT_VERSION:-$(scripts/next-version.sh)}"
-          if [[ -n "$version" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "invalid version: $version" >&2
-            exit 1
-          fi
-          if [[ -n "$version" ]] && git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
-            echo "tag v${version} already exists" >&2
-            exit 1
-          fi
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "next version: ${version:-none}"
+          V: ${{ needs.prepare.outputs.version }}
+        run: echo "minor=${V%.*}" >> "$GITHUB_OUTPUT"
 
-      - uses: dtolnay/rust-toolchain@stable
-        if: steps.version.outputs.version != ''
+  docker:
+    needs: [prepare, tags]
+    uses: Krifmaz/kit/.github/workflows/kit-docker.yml@v0.2.0
+    with:
+      image: homedit
+      version: ${{ needs.prepare.outputs.version }}
+      extra-tags: ${{ needs.tags.outputs.minor }}
+      build-args: |
+        VERSION=${{ needs.prepare.outputs.version }}
+        REVISION=${{ github.sha }}
 
-      - name: Bump version, commit and tag
-        if: steps.version.outputs.version != ''
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          sed -i "/^\[workspace.package\]/,/^\[/ s/^version = \".*\"/version = \"${VERSION}\"/" Cargo.toml
-          # the web app is a workspace of its own: its version follows the server's
-          sed -i "/^\[package\]/,/^\[/ s/^version = \".*\"/version = \"${VERSION}\"/" web/Cargo.toml
-          (cd web && cargo update --workspace)
-          mkdir -p web/dist
-          cargo update --workspace
-          scripts/release-notes.sh "$VERSION" > "$RUNNER_TEMP/notes.md"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock web/Cargo.toml web/Cargo.lock
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(release): v${VERSION}"
-          fi
-          git tag -a "v${VERSION}" -m "homedit v${VERSION}"
-          git push --atomic origin HEAD:main "v${VERSION}"
-
-      - uses: docker/setup-buildx-action@v3
-        if: steps.version.outputs.version != ''
-      - uses: docker/login-action@v3
-        if: steps.version.outputs.version != ''
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Image metadata
-        id: meta
-        if: steps.version.outputs.version != ''
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/homedit
-          flavor: latest=true
-          tags: |
-            type=semver,pattern={{version}},value=v${{ steps.version.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.version.outputs.version }}
-            type=semver,pattern={{major}},value=v${{ steps.version.outputs.version }},enable=${{ !startsWith(steps.version.outputs.version, '0.') }}
-      - name: Build and push amd64 + arm64
-        if: steps.version.outputs.version != ''
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}
-            REVISION=${{ github.sha }}
-          provenance: false
-          cache-from: |
-            type=gha,scope=amd64
-            type=gha,scope=arm64
-
-      - name: Extract binaries from the image
-        if: steps.version.outputs.version != ''
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          IMAGE: ghcr.io/${{ github.repository_owner }}/homedit
-        run: |
-          set -euo pipefail
-          image="${IMAGE,,}:${VERSION}"
-          mkdir -p dist
-          for arch in amd64 arm64; do
-            docker pull -q --platform "linux/${arch}" "$image"
-            id=$(docker create --platform "linux/${arch}" "$image")
-            stage="homedit-v${VERSION}-linux-${arch}"
-            mkdir -p "$stage"
-            docker cp "${id}:/homedit" "${stage}/homedit"
-            docker rm "$id" >/dev/null
-            cp LICENSE README.md "$stage/"
-            tar -czf "dist/${stage}.tar.gz" "$stage"
-          done
-          (cd dist && sha256sum ./*.tar.gz > SHA256SUMS && cat SHA256SUMS)
-
-      - name: Create GitHub Release
-        if: steps.version.outputs.version != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          gh release create "v${VERSION}" dist/* \
-            --title "homedit v${VERSION}" \
-            --notes-file "$RUNNER_TEMP/notes.md" \
-            --verify-tag --latest
+  publish:
+    needs: [prepare, docker]
+    uses: Krifmaz/kit/.github/workflows/kit-release.yml@v0.2.0
+    with:
+      stage: publish
+      app-name: homedit
+      version: ${{ needs.prepare.outputs.version }}
+      # the static binaries, taken from the image just pushed
+      files: |
+        set -euo pipefail
+        image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/homedit:${V}"
+        mkdir -p "$OUT"
+        for arch in amd64 arm64; do
+          docker pull -q --platform "linux/${arch}" "$image"
+          id=$(docker create --platform "linux/${arch}" "$image")
+          stage="homedit-v${V}-linux-${arch}"
+          mkdir -p "$stage"
+          docker cp "${id}:/homedit" "${stage}/homedit"
+          docker rm "$id" >/dev/null
+          cp LICENSE README.md "$stage/"
+          tar -czf "$OUT/${stage}.tar.gz" "$stage"
+        done

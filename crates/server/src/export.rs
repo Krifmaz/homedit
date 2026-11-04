@@ -67,7 +67,7 @@ pub fn to_yaml(dash: &Dashboard, with_secrets: bool) -> Result<String, String> {
     };
     Ok(format!(
         "# homedit dashboard export, version {}\n{note}{body}",
-        env!("CARGO_PKG_VERSION")
+        crate::VERSION
     ))
 }
 

@@ -203,27 +203,26 @@ publish `ghcr.io/krifmaz/homedit:edge`.
 
 ## Releases
 
-Releases are automatic. When CI passes on `main`, the release workflow picks
-the next version from the commits since the last tag, using
-[Conventional Commits](https://www.conventionalcommits.org) prefixes:
+Releases are automatic and run on the
+[Krifmaz kit](https://github.com/Krifmaz/kit)'s shared release workflows.
+Every push to `main` makes a normal `vX.Y.Z` release:
 
-| Commits since the last tag              | Next version (from 0.4.2)        |
-|-----------------------------------------|----------------------------------|
-| any `type!:` or `BREAKING CHANGE`       | 0.5.0 (on 1.x and later: 2.0.0)  |
-| any `feat:` (and no breaking change)    | 0.5.0                            |
-| anything else                           | 0.4.3                            |
+* **PATCH** by default (0.4.2 → 0.4.3);
+* **MINOR or MAJOR** when the change adds that version's notes,
+  `docs/releases/0.5.0.md` or `docs/releases/1.0.0.md`. That file is also the
+  release's notes and what the app's What's new shows; without one, the notes
+  list the commits.
 
-It then bumps the workspace version, commits `chore(release): vX.Y.Z`, pushes
-the `vX.Y.Z` tag and publishes:
+Each release publishes:
 
 * images `ghcr.io/krifmaz/homedit:X.Y.Z`, `:X.Y` and `:latest`,
-* a GitHub Release with grouped notes, static `linux-amd64` and
-  `linux-arm64` binaries, and `SHA256SUMS`.
+* a GitHub Release with the notes, static `linux-amd64` and `linux-arm64`
+  binaries, and `SHA256SUMS`.
 
-The first release (no tag yet) uses the version already in `Cargo.toml`. To
-release by hand, or to choose the version, run the **Release** workflow from
-the Actions tab. `scripts/next-version.sh` prints the next version and
-`scripts/release-notes.sh <version>` previews the notes.
+The version is built in from `HOMEDIT_VERSION` (the image's `VERSION` build
+argument); a build without it reports the version in `Cargo.toml`. To release
+by hand, or to choose the bump or the version, run the **Release** workflow
+from the Actions tab.
 
 ## License
 

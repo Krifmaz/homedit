@@ -21,7 +21,7 @@ const METHODS: [&str; 5] = ["get", "post", "put", "patch", "delete"];
 pub static SPEC: LazyLock<String> = LazyLock::new(|| {
     SPEC_SOURCE.replacen(
         "version: VERSION",
-        &format!("version: {}", env!("CARGO_PKG_VERSION")),
+        &format!("version: {}", crate::VERSION),
         1,
     )
 });
@@ -204,7 +204,7 @@ mod tests {
     #[test]
     fn spec_parses_and_every_operation_is_described() {
         let doc: Value = serde_yaml_ng::from_str(&SPEC).unwrap();
-        assert_eq!(doc["info"]["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(doc["info"]["version"], crate::VERSION);
         let tags: Vec<&str> = doc["tags"]
             .as_array()
             .unwrap()

@@ -56,7 +56,7 @@ impl Default for ContextOptions {
             timeout: DEFAULT_TIMEOUT,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
             extra_allowed_hosts: Vec::new(),
-            user_agent: concat!("homedit/", env!("CARGO_PKG_VERSION")).into(),
+            user_agent: format!("homedit/{}", crate::VERSION),
         }
     }
 }
