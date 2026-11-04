@@ -17,6 +17,7 @@ import {
   scanProgress,
   suggestionToService,
   widenBareNetworks,
+  widenQuestion,
   type FoundService,
 } from "./suggest";
 
@@ -129,9 +130,9 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const start = async (e: FormEvent) => {
-    e.preventDefault();
-    const req = currentRequest();
+  /** Starts a scan of `text` (the targets box), with the form's ports. */
+  const scan = async (text: string) => {
+    const req = { ...currentRequest(), targets: parseTargets(text) };
     if (req.targets.length === 0) return;
     if (portKind === "full" && !window.confirm("Scanning all 65,535 ports is slow. Continue?"))
       return;
@@ -142,6 +143,25 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
     } catch (err) {
       setError(loginErrorMessage(err));
     }
+  };
+
+  /** Starts the scan, first offering /24 ranges for bare network addresses. */
+  const start = async (e: FormEvent) => {
+    e.preventDefault();
+    let text = targets;
+    const bareNow = bareNetworks(text);
+    if (bareNow.length > 0 && window.confirm(widenQuestion(bareNow))) {
+      text = widenBareNetworks(text);
+      setTargets(text);
+    }
+    await scan(text);
+  };
+
+  /** Rescans with the last scan's bare network addresses widened to /24. */
+  const rescanWidened = async () => {
+    const text = widenBareNetworks(targets);
+    setTargets(text);
+    await scan(text);
   };
 
   const add = (f: FoundService) => {
@@ -168,6 +188,12 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
   const found = job ? foundServices(job) : [];
   const shown = hideKnown ? found.filter((f) => !f.onDashboard) : found;
   const known = found.length - found.filter((f) => !f.onDashboard).length;
+  // Bare network addresses in the finished scan that are still in the box,
+  // so a scan that found nothing can offer the whole network instead.
+  const scannedBare =
+    job?.report && !running && found.length === 0
+      ? bareNetworks(job.report.targets.join("\n")).filter((t) => bare.includes(t))
+      : [];
 
   return (
     <div className="scan">
@@ -186,7 +212,7 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
             One per line: a CIDR range (192.168.1.0/24), an address, or a hostname. Only private
             ranges are allowed unless the server is configured otherwise.
           </span>
-          {bare.length > 0 && (
+          {bare.length > 0 && scannedBare.length === 0 && (
             <div className="scan-hint" role="status">
               <span>
                 {bare.length === 1
@@ -342,6 +368,23 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
             </div>
           )}
           {shown.length === 0 && <p className="field-help">Nothing new found.</p>}
+          {scannedBare.length > 0 && (
+            <div className="scan-hint" role="status">
+              <span>
+                {scannedBare.length === 1
+                  ? `Only the single address ${scannedBare[0]} was scanned. The devices are likely elsewhere on its network.`
+                  : `Only the single addresses ${scannedBare.join(", ")} were scanned. The devices are likely elsewhere on their networks.`}
+              </span>
+              <button
+                type="button"
+                className="btn"
+                disabled={running}
+                onClick={() => void rescanWidened()}
+              >
+                Scan {scannedBare.length === 1 ? `${scannedBare[0]}/24` : "the /24 ranges"}
+              </button>
+            </div>
+          )}
           <ul className="scan-list">
             {shown.map((f) => (
               <li key={f.key}>

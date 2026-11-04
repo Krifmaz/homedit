@@ -120,3 +120,13 @@ export function widenBareNetworks(text: string): string {
   const bare = new Set(bareNetworks(text));
   return text.replace(/[^\s,]+/g, (t) => (bare.has(t) ? `${t}/24` : t));
 }
+
+/**
+ * The question asked before scanning bare network addresses: offer their /24
+ * ranges instead of the single addresses.
+ */
+export function widenQuestion(bare: string[]): string {
+  return bare.length === 1
+    ? `${bare[0]} is a network address, so only that one address would be scanned. Scan ${bare[0]}/24 (the whole network) instead?`
+    : `${bare.join(", ")} are network addresses, so only those addresses would be scanned. Scan their /24 ranges (the whole networks) instead?`;
+}

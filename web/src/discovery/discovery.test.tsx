@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { afterEach, vi } from "vitest";
 import { MockApi } from "../api/mock";
 import type { ScanJob } from "../api/types";
 import { App } from "../app/App";
@@ -11,6 +12,7 @@ import {
   scanProgress,
   suggestionToService,
   widenBareNetworks,
+  widenQuestion,
 } from "./suggest";
 
 const job: ScanJob = {
@@ -128,6 +130,76 @@ describe("scan panel", () => {
     await user.type(box, "8.8.8.8");
     await user.click(screen.getByRole("button", { name: "Start scan" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("not a private address");
+  });
+});
+
+describe("bare network addresses", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  async function openWith(user: ReturnType<typeof userEvent.setup>, text: string) {
+    await user.click(await screen.findByRole("button", { name: /Edit/ }));
+    await user.click(await screen.findByRole("button", { name: "Find services" }));
+    const box = screen.getByLabelText("Networks and hosts");
+    await user.clear(box);
+    await user.type(box, text);
+    return box;
+  }
+
+  it("asks about the /24 in plain words", () => {
+    expect(widenQuestion(["10.0.1.0"])).toMatch(
+      /Scan 10\.0\.1\.0\/24 \(the whole network\) instead\?/,
+    );
+    expect(widenQuestion(["10.0.1.0", "10.0.2.0"])).toMatch(/^10\.0\.1\.0, 10\.0\.2\.0 are/);
+  });
+
+  it("offers the /24 when the scan starts and scans it on yes", async () => {
+    const { api, user } = setup();
+    const ask = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const startScan = vi.spyOn(api, "startScan");
+    const box = await openWith(user, "10.0.1.0");
+    await user.click(screen.getByRole("button", { name: "Start scan" }));
+    expect(ask).toHaveBeenCalledWith(widenQuestion(["10.0.1.0"]));
+    await waitFor(() => expect(startScan).toHaveBeenCalled());
+    expect(startScan.mock.calls[0]![0].targets).toEqual(["10.0.1.0/24"]);
+    expect(box).toHaveValue("10.0.1.0/24");
+  });
+
+  it("scans just the address on no", async () => {
+    const { api, user } = setup();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const startScan = vi.spyOn(api, "startScan");
+    await openWith(user, "10.0.1.0");
+    await user.click(screen.getByRole("button", { name: "Start scan" }));
+    await waitFor(() => expect(startScan).toHaveBeenCalled());
+    expect(startScan.mock.calls[0]![0].targets).toEqual(["10.0.1.0"]);
+  });
+
+  it("offers the /24 again when scanning the bare address found nothing", async () => {
+    const { api, user } = setup();
+    const empty: ScanJob = {
+      id: 1,
+      running: false,
+      events: [],
+      suggestions: {},
+      report: {
+        targets: ["10.0.1.0"],
+        started_at_ms: 0,
+        finished_at_ms: 1,
+        probes_sent: 120,
+        hosts: [],
+      },
+    };
+    const scanJob = vi.spyOn(api, "scanJob").mockResolvedValue(empty);
+    const startScan = vi.spyOn(api, "startScan");
+    const box = await openWith(user, "10.0.1.0");
+    expect(
+      await screen.findByText(/Only the single address 10\.0\.1\.0 was scanned/),
+    ).toBeInTheDocument();
+    scanJob.mockRestore();
+    await user.click(screen.getByRole("button", { name: "Scan 10.0.1.0/24" }));
+    await waitFor(() => expect(startScan).toHaveBeenCalled());
+    expect(startScan.mock.calls[0]![0].targets).toEqual(["10.0.1.0/24"]);
+    expect(box).toHaveValue("10.0.1.0/24");
   });
 });
 
