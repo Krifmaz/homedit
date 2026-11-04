@@ -12,6 +12,7 @@ import type {
   HistoryEntry,
   HostResult,
   IconResult,
+  ImageFile,
   ImportWarning,
   LoginResult,
   Me,
@@ -148,6 +149,7 @@ export function sampleConfig(): ConfigDoc {
       theme: "system",
       accent: "#3b6fd8",
       background: null,
+      cardBlur: 0,
       customCss: "",
       search: { provider: "duckduckgo" },
     },
@@ -323,6 +325,7 @@ export class MockApi implements Api {
   private readonly opts: Required<MockOptions>;
   private readonly statusMap: StatusMap = {};
   private readonly customIcons: IconResult[] = [];
+  private images: ImageFile[] = [];
   private signedIn: UserAccount | null = null;
   private accounts: UserAccount[] = [];
 
@@ -877,5 +880,15 @@ export class MockApi implements Api {
     const icon: IconResult = { name: `custom:${file.name}`, source: "custom", url };
     this.customIcons.push(icon);
     return icon;
+  }
+  async listImages() {
+    await this.wait();
+    return [...this.images];
+  }
+  async uploadImage(file: File) {
+    await this.wait();
+    const image: ImageFile = { name: file.name, url: URL.createObjectURL(file) };
+    this.images = [...this.images.filter((i) => i.name !== file.name), image];
+    return image;
   }
 }

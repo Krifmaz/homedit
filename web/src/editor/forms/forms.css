@@ -107,3 +107,43 @@
 .drawer textarea {
   max-width: 100%;
 }
+
+/* Background picker */
+.bg-preview {
+  height: 120px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--surface-2);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.85em;
+  overflow: hidden;
+}
+
+.bg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+}
+
+.bg-choice {
+  padding: 0;
+  height: 48px;
+  overflow: hidden;
+}
+
+.bg-choice img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.bg-choice.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

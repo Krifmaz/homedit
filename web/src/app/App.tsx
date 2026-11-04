@@ -12,7 +12,7 @@ import { Drawer } from "../editor/Drawer";
 import { allGroups } from "../editor/ops";
 import { useApp } from "./context";
 import { Notices } from "./Notices";
-import { useApplySettings } from "./theme";
+import { backgroundFilter, cssUrl, useApplySettings } from "./theme";
 import { Toolbar } from "./Toolbar";
 
 /** Root component. */
@@ -38,9 +38,11 @@ export function App() {
           className="page-bg"
           aria-hidden
           style={{
-            backgroundImage: `url("${bg.url.replace(/["\\]/g, "")}")`,
-            filter: bg.blur ? `blur(${bg.blur}px)` : undefined,
+            backgroundImage: cssUrl(bg.url),
+            filter: backgroundFilter(bg) || undefined,
             opacity: bg.opacity,
+            // Blur fades the edges towards transparent; overscan hides that.
+            transform: bg.blur ? "scale(1.06)" : undefined,
           }}
         />
       )}

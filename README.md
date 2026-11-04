@@ -16,7 +16,7 @@ HOMEDIT_DATA_DIR=./data HOMEDIT_LISTEN=127.0.0.1:3000 cargo run -p homedit
 | Variable           | Default        | Meaning                           |
 |--------------------|----------------|-----------------------------------|
 | `HOMEDIT_LISTEN`   | `0.0.0.0:3000` | Address to listen on              |
-| `HOMEDIT_DATA_DIR` | `/data`        | SQLite database and uploaded icons |
+| `HOMEDIT_DATA_DIR` | `/data`        | SQLite database, uploaded icons and images |
 | `RUST_LOG`         | `info`         | Log filter                        |
 
 ## What works now
@@ -35,6 +35,10 @@ HOMEDIT_DATA_DIR=./data HOMEDIT_LISTEN=127.0.0.1:3000 cargo run -p homedit
 - Icons by name: dashboard-icons (`sonarr`, `sonarr.svg`), selfh.st
   (`sh-sonarr`), Material Design (`mdi-server`), Simple Icons (`si-github`),
   URLs, and uploads (`custom/nas.png`, served with a sandboxing CSP).
+- Background images with blur, opacity, saturation and brightness, plus
+  frosted-glass cards. Uploads go to `/data/images` and are served at
+  `/images/`; gethomepage's `/images/…` and `/icons/…` paths work once those
+  files are copied into `/data/images` and `/data/icons`.
 - Widget secrets are masked in every response (`••••` on the dashboard,
   `{"$secret":"set"}` in the editor document, kept on save).
 

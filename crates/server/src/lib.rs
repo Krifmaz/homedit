@@ -2,7 +2,8 @@
 //!
 //! [`app`] builds the axum router: the REST API under `/api` (see [`api`]),
 //! login under `/api/auth` (from `homedit-auth`), live events over SSE,
-//! custom icon files under `/icons/custom`, `/healthz`, `/readyz` and
+//! custom icon files under `/icons/custom` (and `/icons`), uploaded
+//! background images under `/images`, `/healthz`, `/readyz` and
 //! `/metrics` (from `homedit-ops`), and the embedded React UI for
 //! everything else (see [`assets`]).
 //!
@@ -19,6 +20,7 @@ pub mod docs;
 pub mod error;
 pub mod export;
 pub mod icons;
+pub mod images;
 pub mod import;
 pub mod info;
 pub mod scan;
@@ -136,6 +138,11 @@ impl AppState {
     pub fn icon_dir(&self) -> PathBuf {
         self.data_dir.join("icons")
     }
+
+    /// Folder that holds uploaded background images.
+    pub fn image_dir(&self) -> PathBuf {
+        self.data_dir.join("images")
+    }
 }
 
 /// Builds the complete router.
@@ -161,6 +168,10 @@ pub fn app(state: AppState) -> Router {
         )
         .nest("/api", api::router())
         .nest("/icons/custom", icons::serve_router(&state.icon_dir()))
+        // gethomepage serves `public/icons` at `/icons/`; serving the same
+        // folder there makes imported `/icons/x.png` references work.
+        .nest("/icons", icons::serve_router(&state.icon_dir()))
+        .nest("/images", images::router(&state))
         .fallback(assets::serve)
         .layer(axum::middleware::from_fn_with_state(
             state.auth.clone(),

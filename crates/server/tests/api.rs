@@ -254,6 +254,65 @@ async fn icon_upload_and_search() {
 }
 
 #[tokio::test]
+async fn image_upload_list_and_serve() {
+    let (st, _d) = state().await;
+    let boundary = "XBOUNDARY";
+    let body = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"My Wall.JPG\"\r\n\
+         Content-Type: image/jpeg\r\n\r\nJPEGDATA\r\n--{boundary}--\r\n"
+    );
+    let (token, cookie) = csrf(&st).await;
+    let req = Request::post("/api/images")
+        .header("x-csrf-token", token)
+        .header(header::COOKIE, cookie)
+        .header(
+            header::CONTENT_TYPE,
+            format!("multipart/form-data; boundary={boundary}"),
+        )
+        .body(Body::from(body))
+        .unwrap();
+    let resp = app(st.clone()).oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let v: Value =
+        serde_json::from_slice(&resp.into_body().collect().await.unwrap().to_bytes()).unwrap();
+    assert_eq!(v["url"], "/images/my-wall.jpg");
+
+    let resp = app(st.clone())
+        .oneshot(
+            Request::get("/images/my-wall.jpg")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert!(
+        resp.headers()[header::CONTENT_SECURITY_POLICY]
+            .to_str()
+            .unwrap()
+            .contains("sandbox")
+    );
+
+    let (_, body) = call(&st, "GET", "/api/images", None, None).await;
+    let list: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(
+        list,
+        json!([{"name": "my-wall.jpg", "url": "/images/my-wall.jpg"}])
+    );
+
+    // gethomepage-style `/icons/x.png` references are served from the icon folder.
+    std::fs::create_dir_all(st.icon_dir()).unwrap();
+    std::fs::write(st.icon_dir().join("nas.png"), b"PNG").unwrap();
+    for path in ["/icons/nas.png", "/icons/custom/nas.png"] {
+        let resp = app(st.clone())
+            .oneshot(Request::get(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK, "{path}");
+    }
+}
+
+#[tokio::test]
 async fn ops_routes_and_catalog() {
     let (st, _d) = state().await;
     let (code, _) = call(&st, "GET", "/healthz", None, None).await;

@@ -4,7 +4,14 @@ import { MockApi } from "../api/mock";
 import type { ScanJob } from "../api/types";
 import { App } from "../app/App";
 import { AppProvider } from "../app/context";
-import { foundServices, parseTargets, scanProgress, suggestionToService } from "./suggest";
+import {
+  bareNetworks,
+  foundServices,
+  parseTargets,
+  scanProgress,
+  suggestionToService,
+  widenBareNetworks,
+} from "./suggest";
 
 const job: ScanJob = {
   id: 1,
@@ -77,6 +84,13 @@ describe("scan helpers", () => {
       "10.0.0.5",
       "nas.lan",
     ]);
+  });
+
+  it("spots network addresses written without a prefix length", () => {
+    expect(bareNetworks("10.0.1.0\n10.0.2.0/24\n10.0.0.5\n300.1.1.0")).toEqual(["10.0.1.0"]);
+    expect(widenBareNetworks("10.0.1.0\n192.168.5.0, nas.lan\n10.0.2.0/24")).toBe(
+      "10.0.1.0/24\n192.168.5.0/24, nas.lan\n10.0.2.0/24",
+    );
   });
 });
 

@@ -343,6 +343,28 @@ paths:
                 file: { type: string, format: binary }
       responses:
         "200": { description: The stored icon }
+  /api/images:
+    get:
+      tags: [icons]
+      summary: List uploaded background images (admin)
+      responses:
+        "200": { description: "[{name, url}]" }
+    post:
+      tags: [icons]
+      summary: Upload a background image (admin, multipart, at most 20 MB)
+      description: |
+        JPEG, PNG, WebP, AVIF, GIF or SVG. Stored in `$HOMEDIT_DATA_DIR/images`
+        and served from `/images/{name}`, the path gethomepage uses, so an
+        imported `background: /images/x.jpg` works once the file is there.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200": { description: "The stored image: {name, url}" }
   /api/import:
     post:
       tags: [backup]
@@ -509,8 +531,13 @@ components:
               properties:
                 url: { type: string }
                 blur: { type: string }
-                opacity: { type: integer }
+                opacity: { type: integer, description: Percent }
+                saturate: { type: integer, description: "Percent; 100 is unchanged" }
+                brightness: { type: integer, description: "Percent; 100 is unchanged" }
             customCss: { type: string }
+            cardBlur:
+              type: string
+              description: Frosted-glass blur behind cards, e.g. `md` or `8px`
             search:
               type: object
               properties:

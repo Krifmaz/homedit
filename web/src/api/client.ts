@@ -9,6 +9,7 @@ import type {
   DashboardData,
   HistoryEntry,
   IconResult,
+  ImageFile,
   ImportResult,
   ImportWarning,
   LoginResult,
@@ -154,6 +155,10 @@ export interface Api {
   searchIcons(q: string): Promise<IconResult[]>;
   /** Upload a custom icon. */
   uploadIcon(file: File): Promise<IconResult>;
+  /** Uploaded background images (admin). */
+  listImages(): Promise<ImageFile[]>;
+  /** Upload a background image (admin); stored under `/images/`. */
+  uploadImage(file: File): Promise<ImageFile>;
 }
 
 /** Maps a non-URL icon reference (e.g. `di:plex`) to a URL. */
@@ -400,6 +405,14 @@ export class HttpApi implements Api {
     const body = new FormData();
     body.append("file", file);
     return this.request<IconResult>("/icons", { method: "POST", body });
+  }
+  listImages() {
+    return this.request<ImageFile[]>("/images");
+  }
+  uploadImage(file: File) {
+    const body = new FormData();
+    body.append("file", file);
+    return this.request<ImageFile>("/images", { method: "POST", body });
   }
 }
 

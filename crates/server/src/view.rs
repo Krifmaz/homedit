@@ -44,6 +44,9 @@ pub struct DocView {
     pub version: i64,
 }
 
+/// Key of gethomepage's `cardBlur` in [`Settings::extra`].
+const CARD_BLUR_KEY: &str = "cardBlur";
+
 /// Page settings.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -61,6 +64,10 @@ pub struct SettingsView {
     /// Extra CSS.
     #[serde(default)]
     pub custom_css: Option<String>,
+    /// Frosted-glass blur behind cards (gethomepage `cardBlur`): a
+    /// Tailwind-style size such as `md` or a CSS length.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card_blur: Option<String>,
     /// Search bar provider.
     #[serde(default)]
     pub search: Option<SearchView>,
@@ -78,6 +85,12 @@ pub struct BackgroundView {
     /// Opacity in percent.
     #[serde(default)]
     pub opacity: Option<u16>,
+    /// Saturation in percent (100 is unchanged).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub saturate: Option<u16>,
+    /// Brightness in percent (100 is unchanged).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brightness: Option<u16>,
 }
 
 /// Search bar settings.
@@ -347,8 +360,19 @@ fn settings_view(s: &Settings, widgets: &[InfoWidget]) -> SettingsView {
             url: b.image.clone(),
             blur: b.blur.clone(),
             opacity: b.opacity,
+            saturate: b.saturate,
+            brightness: b.brightness,
         }),
         custom_css: s.custom_css.clone(),
+        card_blur: s
+            .extra
+            .get(CARD_BLUR_KEY)
+            .and_then(|v| match v {
+                serde_json::Value::String(s) => Some(s.clone()),
+                serde_json::Value::Number(n) => Some(n.to_string()),
+                _ => None,
+            })
+            .filter(|s| !s.trim().is_empty()),
         search: provider.map(|provider| SearchView { provider, url }),
     }
 }
@@ -560,8 +584,21 @@ fn settings_in(v: &SettingsView, old: &Settings) -> Result<Settings, ViewError> 
         bg.image = b.url.clone();
         bg.blur = b.blur.clone();
         bg.opacity = b.opacity;
+        bg.saturate = b.saturate;
+        bg.brightness = b.brightness;
         bg
     });
+    match v.card_blur.as_deref().map(str::trim) {
+        Some(blur) if !blur.is_empty() => {
+            s.extra.insert(
+                CARD_BLUR_KEY.into(),
+                serde_json::Value::String(blur.to_owned()),
+            );
+        }
+        _ => {
+            s.extra.remove(CARD_BLUR_KEY);
+        }
+    }
     s.search_provider = v.search.as_ref().map(|x| x.provider.clone());
     s.search_url = v.search.as_ref().and_then(|x| x.url.clone());
     Ok(s)

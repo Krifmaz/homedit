@@ -11,10 +11,12 @@ import { useApp } from "../app/context";
 import { loginErrorMessage } from "../auth/LoginPage";
 import { allGroups, newId, upsertGroup, upsertService } from "../editor/ops";
 import {
+  bareNetworks,
   foundServices,
   parseTargets,
   scanProgress,
   suggestionToService,
+  widenBareNetworks,
   type FoundService,
 } from "./suggest";
 
@@ -161,6 +163,7 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
     app.open({ kind: "service", groupId: gid, serviceId: svc.id });
   };
 
+  const bare = bareNetworks(targets);
   const progress = job ? scanProgress(job) : null;
   const found = job ? foundServices(job) : [];
   const shown = hideKnown ? found.filter((f) => !f.onDashboard) : found;
@@ -183,6 +186,22 @@ export function ScanPanel({ onClose }: { onClose: () => void }) {
             One per line: a CIDR range (192.168.1.0/24), an address, or a hostname. Only private
             ranges are allowed unless the server is configured otherwise.
           </span>
+          {bare.length > 0 && (
+            <div className="scan-hint" role="status">
+              <span>
+                {bare.length === 1
+                  ? `${bare[0]} is a network address, so only that one address is scanned. To scan the whole network, use ${bare[0]}/24.`
+                  : `${bare.join(", ")} are network addresses, so only those addresses are scanned. To scan the whole networks, add /24 to each.`}
+              </span>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setTargets(widenBareNetworks(targets))}
+              >
+                Scan {bare.length === 1 ? `${bare[0]}/24` : "the /24 ranges"}
+              </button>
+            </div>
+          )}
         </div>
         <div className="field">
           <label htmlFor="scan-ports">Ports</label>
