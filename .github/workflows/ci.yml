@@ -80,7 +80,7 @@ jobs:
 
       # Build amd64 alone first and load it, so the smoke test can run it.
       - name: Build amd64 for the smoke test
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64
@@ -95,7 +95,7 @@ jobs:
         run: scripts/smoke-test.sh homedit:ci
 
       - name: Build amd64 + arm64 (push on main and tags)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
