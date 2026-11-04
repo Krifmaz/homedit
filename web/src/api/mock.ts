@@ -891,4 +891,11 @@ export class MockApi implements Api {
     this.images = [...this.images.filter((i) => i.name !== file.name), image];
     return image;
   }
+  async fetchImage(url: string) {
+    await this.wait();
+    const name = url.split(/[?#]/)[0]!.split("/").pop() || "image.jpg";
+    const image: ImageFile = { name, url };
+    this.images = [...this.images.filter((i) => i.name !== name), image];
+    return image;
+  }
 }

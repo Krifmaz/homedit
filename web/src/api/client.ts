@@ -159,6 +159,8 @@ export interface Api {
   listImages(): Promise<ImageFile[]>;
   /** Upload a background image (admin); stored under `/images/`. */
   uploadImage(file: File): Promise<ImageFile>;
+  /** Have the server download the image at `url` into `/images/` (admin). */
+  fetchImage(url: string): Promise<ImageFile>;
 }
 
 /** Maps a non-URL icon reference (e.g. `di:plex`) to a URL. */
@@ -413,6 +415,12 @@ export class HttpApi implements Api {
     const body = new FormData();
     body.append("file", file);
     return this.request<ImageFile>("/images", { method: "POST", body });
+  }
+  fetchImage(url: string) {
+    return this.request<ImageFile>("/images/fetch", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    });
   }
 }
 

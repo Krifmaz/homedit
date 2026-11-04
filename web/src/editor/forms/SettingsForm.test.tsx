@@ -62,6 +62,20 @@ describe("SettingsForm", () => {
     );
   });
 
+  it("saves a copy of a web image on the server", async () => {
+    const { api } = await renderForm(<SettingsForm onClose={() => {}} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("Show a background image"));
+    expect(
+      screen.queryByRole("button", { name: "Save a copy on this server" }),
+    ).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Image URL"), "https://cdn.example/a/wall.jpg");
+    vi.spyOn(api, "fetchImage").mockResolvedValue({ name: "wall.jpg", url: "/images/wall.jpg" });
+    await user.click(screen.getByRole("button", { name: "Save a copy on this server" }));
+    expect(api.fetchImage).toHaveBeenCalledWith("https://cdn.example/a/wall.jpg");
+    expect(currentDoc().settings.background?.url).toBe("/images/wall.jpg");
+  });
+
   it("sets the frosted card blur", async () => {
     await renderForm(<SettingsForm onClose={() => {}} />);
     fireEvent.change(screen.getByLabelText("Frosted glass blur (px)"), {
