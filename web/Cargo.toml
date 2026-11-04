@@ -1,0 +1,47 @@
+# homedit's web app: Leptos (client-side, WebAssembly) on the Krifmaz kit's components and look, built by trunk
+# into dist/, which the server embeds. A Cargo workspace of its own, so the server's workspace never builds wasm.
+[workspace]
+resolver = "2"
+
+[package]
+name = "homedit-web"
+description = "homedit's web app: the dashboard, its editor and the kit's pages."
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.88"
+license = "Apache-2.0"
+publish = false
+
+[[bin]]
+name = "homedit-web"
+path = "src/main.rs"
+
+# The kit, pinned to the same tag as the server's Cargo.toml.
+[dependencies]
+kit-leptos = { git = "https://github.com/Krifmaz/kit", tag = "v0.2.0" }
+kit-rules = { git = "https://github.com/Krifmaz/kit", tag = "v0.2.0" }
+leptos = { version = "=0.8.23", features = ["csr"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+send_wrapper = "0.6"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+gloo-timers = { version = "0.4", features = ["futures"] }
+web-sys = { version = "0.3", features = [
+  "Window", "Document", "Element", "HtmlElement", "HtmlInputElement", "HtmlSelectElement", "HtmlTextAreaElement",
+  "HtmlFormElement", "HtmlImageElement", "Location", "Storage", "Node", "DomRect", "DomTokenList",
+  "CssStyleDeclaration", "Event", "EventTarget", "KeyboardEvent", "MouseEvent", "PointerEvent", "FocusEvent",
+  "EventSource", "MessageEvent", "File", "FileList", "FormData", "Blob", "Url", "MediaQueryList",
+  "BeforeUnloadEvent", "Crypto", "console", "HtmlAnchorElement", "ScrollIntoViewOptions", "ScrollBehavior",
+  "ScrollLogicalPosition", "VisibilityState",
+] }
+
+[lints.rust]
+missing_docs = "warn"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

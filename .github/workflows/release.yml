@@ -91,17 +91,15 @@ jobs:
         run: |
           set -euo pipefail
           sed -i "/^\[workspace.package\]/,/^\[/ s/^version = \".*\"/version = \"${VERSION}\"/" Cargo.toml
-          if [[ -f web/package.json ]]; then
-            (cd web && npm version "$VERSION" --no-git-tag-version --allow-same-version >/dev/null)
-          fi
+          # the web app is a workspace of its own: its version follows the server's
+          sed -i "/^\[package\]/,/^\[/ s/^version = \".*\"/version = \"${VERSION}\"/" web/Cargo.toml
+          (cd web && cargo update --workspace)
           mkdir -p web/dist
           cargo update --workspace
           scripts/release-notes.sh "$VERSION" > "$RUNNER_TEMP/notes.md"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock
-          [[ -f web/package.json ]] && git add web/package.json
-          [[ -f web/package-lock.json ]] && git add web/package-lock.json
+          git add Cargo.toml Cargo.lock web/Cargo.toml web/Cargo.lock
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): v${VERSION}"
           fi
