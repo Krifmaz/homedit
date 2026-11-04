@@ -24,10 +24,12 @@ ARG ZIGBUILD_VERSION=0.23.4
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim AS web
 ARG TRUNK_VERSION
 ARG BUILDARCH
-RUN rustup target add wasm32-unknown-unknown && \
+# rust:slim has no downloader; curl fetches trunk's release binary.
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* && \
+    rustup target add wasm32-unknown-unknown && \
     case "$BUILDARCH" in amd64) a=x86_64 ;; arm64) a=aarch64 ;; *) echo "unsupported: $BUILDARCH" >&2; exit 1 ;; esac && \
-    wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-${a}-unknown-linux-gnu.tar.gz" \
-        | tar -xz -C /usr/local/bin trunk
+    curl -fsSL "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-${a}-unknown-linux-gnu.tar.gz" -o /tmp/trunk.tgz && \
+    tar -xzf /tmp/trunk.tgz -C /usr/local/bin trunk && rm /tmp/trunk.tgz
 WORKDIR /web
 COPY web/ ./
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
