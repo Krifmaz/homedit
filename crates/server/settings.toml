@@ -1,0 +1,290 @@
+# homedit's server settings: every setting with its environment variable and default, and how the Settings
+# pages show it (the kit's kit-server-settings README lists every option). build.rs turns this file into
+# settings_gen.rs: `Keys`, `TABLE` and `SCHEMA`, which `GET /api/settings/schema` answers with.
+#
+# Where a value comes from, first match wins: the environment variable (then the field is locked in the UI),
+# the value saved on the Settings page, the default here. The defaults are the built-in ones, so a server that
+# sets nothing behaves as before. Sign-in, scanner and discovery settings are read at start: a saved change
+# takes effect after a restart (the cards say so).
+#
+# Not here on purpose: HOMEDIT_LISTEN, HOMEDIT_DATA_DIR, HOMEDIT_SECRET_KEY(_FILE), HOMEDIT_IMPORT_DIR and the
+# HOMEDIT_ADMIN_* bootstrap pair. They are needed before the settings can be read, or only make sense once.
+
+[sections.signin]
+title = "Sign-in"
+
+[sections.network]
+title = "Network"
+
+[sections.discovery]
+title = "Discovery"
+
+[groups.signin]
+section = "signin"
+title = "Sign-in"
+desc = "Who has to sign in, and how. Takes effect after a restart."
+
+[groups.oidc]
+section = "signin"
+title = "Single sign-on (OpenID Connect)"
+desc = "Sign in through Authelia, Authentik, Keycloak or any OpenID Connect provider. Takes effect after a restart."
+test = "oidc"
+test_label = "Test the provider"
+
+[groups.proxy]
+section = "signin"
+title = "Reverse proxy sign-in"
+desc = "Believe the user name a trusted reverse proxy puts in a header (forward auth). Takes effect after a restart."
+
+[groups.network]
+section = "network"
+title = "Proxies and origins"
+desc = "Which reverse proxies homedit believes, and which other sites may send it changes. Takes effect after a restart."
+
+[groups.metrics]
+section = "network"
+title = "Metrics"
+desc = "The Prometheus endpoint at /metrics. Takes effect after a restart."
+
+[groups.docker]
+section = "discovery"
+title = "Docker"
+desc = "Add a card for every container with homepage labels. Takes effect after a restart."
+test = "docker"
+test_label = "Test the connection"
+
+[groups.scanner]
+section = "discovery"
+title = "Network scan"
+desc = "How Find services scans your network. Takes effect after a restart."
+
+# --- Sign-in
+
+[keys.auth_enabled]
+env = "HOMEDIT_AUTH_ENABLED"
+default = false
+group = "signin"
+label = "Require sign-in"
+help = "Off: nobody signs in and every visitor can edit the dashboard."
+
+[keys.auth_anonymous_role]
+env = "HOMEDIT_AUTH_ANONYMOUS_ROLE"
+default = "none"
+group = "signin"
+label = "Visitors who are not signed in"
+type = "select"
+options = [["none", "See nothing and must sign in"], ["viewer", "See the dashboard"], ["admin", "Can edit (not recommended)"]]
+
+[keys.auth_local]
+env = "HOMEDIT_AUTH_LOCAL"
+default = true
+group = "signin"
+label = "User names and passwords"
+help = "Accounts kept by homedit (Users in the editor)."
+
+[keys.auth_allow_setup]
+env = "HOMEDIT_AUTH_ALLOW_SETUP"
+default = true
+group = "signin"
+label = "First-run setup"
+help = "While there are no accounts, the sign-in page offers to create the first admin."
+advanced = true
+
+[keys.session_ttl]
+env = "HOMEDIT_SESSION_TTL"
+default = 604800
+group = "signin"
+label = "Stay signed in for"
+unit = "seconds"
+min = 300
+
+[keys.cookie_secure]
+env = "HOMEDIT_COOKIE_SECURE"
+default = "auto"
+group = "signin"
+label = "Secure cookies"
+type = "select"
+options = [["auto", "When the page is on HTTPS"], ["always", "Always"], ["never", "Never"]]
+advanced = true
+
+# --- Single sign-on
+
+[keys.oidc_issuer]
+env = "HOMEDIT_OIDC_ISSUER"
+default = ""
+group = "oidc"
+label = "Issuer URL"
+type = "url"
+help = "For example https://auth.example.com. Empty: single sign-on is off."
+full = true
+
+[keys.oidc_client_id]
+env = "HOMEDIT_OIDC_CLIENT_ID"
+default = ""
+group = "oidc"
+label = "Client ID"
+
+[keys.oidc_client_secret]
+env = "HOMEDIT_OIDC_CLIENT_SECRET"
+default = ""
+secret = true
+group = "oidc"
+label = "Client secret"
+type = "password"
+
+[keys.oidc_redirect_url]
+env = "HOMEDIT_OIDC_REDIRECT_URL"
+default = ""
+group = "oidc"
+label = "Redirect URL"
+type = "url"
+help = "This server's address followed by /api/auth/oidc/callback, as registered with the provider."
+full = true
+
+[keys.oidc_scopes]
+env = "HOMEDIT_OIDC_SCOPES"
+default = "profile email groups"
+group = "oidc"
+label = "Scopes"
+advanced = true
+
+[keys.oidc_groups_claim]
+env = "HOMEDIT_OIDC_GROUPS_CLAIM"
+default = "groups"
+group = "oidc"
+label = "Groups claim"
+advanced = true
+
+[keys.oidc_admin_group]
+env = "HOMEDIT_OIDC_ADMIN_GROUP"
+default = ""
+group = "oidc"
+label = "Admin group"
+help = "Members of this group can edit the dashboard."
+
+[keys.oidc_allowed_group]
+env = "HOMEDIT_OIDC_ALLOWED_GROUP"
+default = ""
+group = "oidc"
+label = "Allowed group"
+help = "Only members of this group may sign in. Empty: anyone the provider signs in."
+
+[keys.oidc_default_role]
+env = "HOMEDIT_OIDC_DEFAULT_ROLE"
+default = "viewer"
+group = "oidc"
+label = "Everyone else"
+type = "select"
+options = [["viewer", "Sees the dashboard"], ["admin", "Can edit"]]
+
+[keys.oidc_button_label]
+env = "HOMEDIT_OIDC_BUTTON_LABEL"
+default = "Sign in with SSO"
+group = "oidc"
+label = "Button text"
+advanced = true
+
+# --- Reverse proxy sign-in
+
+[keys.proxy_auth]
+env = "HOMEDIT_PROXY_AUTH"
+default = false
+group = "proxy"
+label = "Use the proxy's sign-in"
+help = "Only requests from the trusted proxies (Network) are believed."
+
+[keys.proxy_user_header]
+env = "HOMEDIT_PROXY_USER_HEADER"
+default = "Remote-User"
+group = "proxy"
+label = "User header"
+
+[keys.proxy_groups_header]
+env = "HOMEDIT_PROXY_GROUPS_HEADER"
+default = "Remote-Groups"
+group = "proxy"
+label = "Groups header"
+
+[keys.proxy_admin_group]
+env = "HOMEDIT_PROXY_ADMIN_GROUP"
+default = ""
+group = "proxy"
+label = "Admin group"
+
+[keys.proxy_admin_users]
+env = "HOMEDIT_PROXY_ADMIN_USERS"
+default = ""
+group = "proxy"
+label = "Admin users"
+help = "User names, separated by commas or spaces."
+
+[keys.proxy_logout_url]
+env = "HOMEDIT_PROXY_LOGOUT_URL"
+default = ""
+group = "proxy"
+label = "Sign-out URL"
+type = "url"
+help = "Where Sign out goes, for example the proxy's own logout page."
+
+# --- Network
+
+[keys.trusted_proxies]
+env = "HOMEDIT_TRUSTED_PROXIES"
+default = ""
+group = "network"
+label = "Trusted proxies"
+help = "Addresses or ranges (10.0.0.0/8, 172.17.0.1), separated by commas or spaces. Their X-Forwarded-* headers are believed."
+full = true
+
+[keys.allowed_origins]
+env = "HOMEDIT_ALLOWED_ORIGINS"
+default = ""
+group = "network"
+label = "Other allowed origins"
+help = "Other addresses this dashboard is opened at, for example https://dash.example.com."
+full = true
+advanced = true
+
+[keys.metrics_token]
+env = "HOMEDIT_METRICS_TOKEN"
+default = ""
+secret = true
+group = "metrics"
+label = "Metrics token"
+type = "password"
+help = "When set, /metrics needs Authorization: Bearer <token>. Empty: anyone who can reach the server can read it."
+
+# --- Discovery
+
+[keys.docker_host]
+env = "HOMEDIT_DOCKER_HOST"
+default = ""
+group = "docker"
+label = "Docker address"
+help = "unix:///var/run/docker.sock or tcp://socket-proxy:2375. Empty: no Docker discovery."
+full = true
+
+[keys.scan_allow_public]
+env = "HOMEDIT_SCAN_ALLOW_PUBLIC"
+default = false
+group = "scanner"
+label = "Allow public addresses"
+help = "Off: only private and local addresses can be scanned."
+
+[keys.scan_concurrency]
+env = "HOMEDIT_SCAN_CONCURRENCY"
+default = 64
+group = "scanner"
+label = "Connections at once"
+min = 1
+max = 1024
+advanced = true
+
+[keys.scan_rate]
+env = "HOMEDIT_SCAN_RATE"
+default = 300
+group = "scanner"
+label = "Connections per second"
+min = 1
+max = 10000
+advanced = true

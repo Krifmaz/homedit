@@ -87,6 +87,12 @@ A fuller example with Docker discovery through a read-only socket proxy is in
 | `HOMEDIT_DOCKER_HOST`   | –               | `unix:///var/run/docker.sock` or `tcp://proxy:2375`  |
 | `HOMEDIT_METRICS_TOKEN` | –               | If set, `/metrics` needs `Authorization: Bearer ...` |
 
+The sign-in, single sign-on, reverse proxy, network, Docker and scan settings
+(every `HOMEDIT_*` variable in [`crates/server/settings.toml`](crates/server/settings.toml))
+can also be saved from Settings in the web app (`GET/PUT /api/settings`). An
+environment variable always wins and locks its field; saved changes take
+effect after a restart.
+
 Build the image yourself:
 
 ```sh
@@ -128,6 +134,15 @@ or changed (a `changes` scan event, and `diff` in `GET /api/scan`).
 
 Every endpoint is described in OpenAPI 3.1 at `/api/openapi.yaml`, and as a
 readable page at `/api/docs` that works offline.
+
+The shared routes of the [Krifmaz kit](https://github.com/Krifmaz/kit) (see its
+`contracts/`) are served too: `/api/health`, What's new (`/api/changelog*`,
+`/api/auth/prefs`), notices (`/api/notices*`), bug reports and crash logs
+(`/api/bug-reports*`, `/api/crash-reports`), diagnostics (`/api/diagnostics*`)
+and server settings (`/api/settings*`). The kit keeps its data in `kit.db` in
+the data folder; back it up with `homedit.db`. Release notes are in
+[`docs/releases`](docs/releases); non-obvious choices in
+[`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 ## Header widgets
 

@@ -24,6 +24,11 @@ use crate::view::{self, Mode};
 #[exclude = ".gitkeep"]
 struct Ui;
 
+/// The names of the web app's files built into this binary.
+pub fn file_names() -> impl Iterator<Item = String> {
+    Ui::iter().map(|n| n.into_owned())
+}
+
 /// Placeholder in `index.html` replaced by the initial data.
 pub const DATA_PLACEHOLDER: &str = "<!--HOMEDIT_DATA-->";
 

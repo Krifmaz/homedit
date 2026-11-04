@@ -47,7 +47,8 @@ pub fn env_host(value: &str) -> Option<DockerHost> {
     Some(h)
 }
 
-fn endpoint(h: &DockerHost) -> Option<DockerEndpoint> {
+/// Where to reach a Docker host: its socket, or its TCP address (port 2375 by default).
+pub fn endpoint(h: &DockerHost) -> Option<DockerEndpoint> {
     if let Some(s) = &h.socket {
         return Some(DockerEndpoint::Unix(s.into()));
     }
@@ -176,15 +177,31 @@ pub async fn run_once(state: &AppState, env: Option<&DockerHost>) -> anyhow::Res
     }
 }
 
+/// An endpoint as people write it: `unix:///var/run/docker.sock`, `tcp://host:2375`.
+pub fn describe(ep: &DockerEndpoint) -> String {
+    match ep {
+        DockerEndpoint::Unix(p) => format!("unix://{}", p.display()),
+        DockerEndpoint::Tcp { host, port } => format!("tcp://{host}:{port}"),
+    }
+}
+
+/// The Docker address setting (`HOMEDIT_DOCKER_HOST`, or saved in Settings) as the host `local`; `None`
+/// when empty or not an address.
+pub fn configured_host(state: &AppState) -> Option<DockerHost> {
+    let v = state.kit.settings.str("docker_host");
+    if v.trim().is_empty() {
+        return None;
+    }
+    let h = env_host(&v);
+    if h.is_none() {
+        tracing::warn!(value = %v, "the Docker address is not unix://path or tcp://host:port");
+    }
+    h
+}
+
 /// Starts the discovery loop.
 pub fn spawn(state: AppState) -> tokio::task::JoinHandle<()> {
-    let env = std::env::var("HOMEDIT_DOCKER_HOST").ok().and_then(|v| {
-        let h = env_host(&v);
-        if h.is_none() {
-            tracing::warn!(value = %v, "HOMEDIT_DOCKER_HOST is not unix://path or tcp://host:port");
-        }
-        h
-    });
+    let env = configured_host(&state);
     tokio::spawn(async move {
         loop {
             if let Err(e) = run_once(&state, env.as_ref()).await {

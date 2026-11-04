@@ -65,6 +65,7 @@ async fn serve() -> anyhow::Result<()> {
     homedit::status::spawn_checker(state.clone());
     homedit::discovery::spawn(state.clone());
     homedit::schedule::spawn(state.clone());
+    kit_server_notices::spawn_rechecks(state.clone());
 
     let listener = tokio::net::TcpListener::bind(listen)
         .await

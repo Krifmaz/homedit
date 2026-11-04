@@ -9,3 +9,4 @@ data/
 .github/
 *.md
 !README.md
+!docs/releases/*.md

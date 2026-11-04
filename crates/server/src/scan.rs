@@ -62,9 +62,12 @@ pub struct ScanJobs {
     job: Mutex<Job>,
 }
 
-fn env_parse<T: std::str::FromStr>(name: &str) -> anyhow::Result<Option<T>> {
-    match std::env::var(name) {
-        Ok(v) if !v.trim().is_empty() => v
+fn parse_var<T: std::str::FromStr>(
+    get: &impl Fn(&str) -> Option<String>,
+    name: &str,
+) -> anyhow::Result<Option<T>> {
+    match get(name) {
+        Some(v) if !v.trim().is_empty() => v
             .trim()
             .parse()
             .map(Some)
@@ -76,14 +79,19 @@ fn env_parse<T: std::str::FromStr>(name: &str) -> anyhow::Result<Option<T>> {
 impl ScanJobs {
     /// Builds the scanner from the environment.
     pub fn from_env() -> anyhow::Result<Self> {
+        Self::from_lookup(|k| std::env::var(k).ok())
+    }
+
+    /// Builds the scanner from `HOMEDIT_SCAN_*` values read through `get` (the server settings).
+    pub fn from_lookup(get: impl Fn(&str) -> Option<String>) -> anyhow::Result<Self> {
         let mut p = ScanPolicy::default();
-        if let Some(v) = env_parse::<bool>("HOMEDIT_SCAN_ALLOW_PUBLIC")? {
+        if let Some(v) = parse_var::<bool>(&get, "HOMEDIT_SCAN_ALLOW_PUBLIC")? {
             p.allow_public = v;
         }
-        if let Some(v) = env_parse("HOMEDIT_SCAN_CONCURRENCY")? {
+        if let Some(v) = parse_var(&get, "HOMEDIT_SCAN_CONCURRENCY")? {
             p.max_concurrency = v;
         }
-        if let Some(v) = env_parse("HOMEDIT_SCAN_RATE")? {
+        if let Some(v) = parse_var(&get, "HOMEDIT_SCAN_RATE")? {
             p.connects_per_second = v;
         }
         Ok(Self {
