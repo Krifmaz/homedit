@@ -54,12 +54,7 @@ pub async fn fetch(
         SsrfGuard::from_urls([url]),
         ClientOptions {
             timeout: Duration::from_secs(30),
-            user_agent: concat!(
-                "Mozilla/5.0 (compatible; homedit/",
-                env!("CARGO_PKG_VERSION"),
-                ")"
-            )
-            .into(),
+            user_agent: format!("Mozilla/5.0 (compatible; homedit/{})", crate::VERSION),
             ..ClientOptions::default()
         },
     )

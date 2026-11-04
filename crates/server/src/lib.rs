@@ -13,6 +13,12 @@
 //! in-memory status cache with its broadcast channel
 //! ([`status::StatusHub`]), metrics, and the data folder.
 
+/// This build's version: `HOMEDIT_VERSION` at build time (the release sets it), else Cargo.toml's.
+pub const VERSION: &str = match option_env!("HOMEDIT_VERSION") {
+    Some(v) => v,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 pub mod api;
 pub mod assets;
 pub mod auth;
@@ -134,7 +140,7 @@ impl AppState {
             status: Arc::new(hub),
             widgets: Arc::new(WidgetRegistry::builtin()),
             widget_ctx,
-            metrics: Metrics::new(env!("CARGO_PKG_VERSION")),
+            metrics: Metrics::new(crate::VERSION),
             scans: Arc::new(scan::ScanJobs::from_lookup(kit::lookup(&kit.settings))?),
             info: Arc::new(info::InfoState::default()),
             data_dir,
@@ -159,7 +165,7 @@ impl AppState {
 pub fn app(state: AppState) -> Router {
     let pool = state.db.pool().clone();
     let ops = OpsState::new(state.metrics.clone())
-        .with_version(env!("CARGO_PKG_VERSION"))
+        .with_version(crate::VERSION)
         .with_check(ReadinessCheck::new("database", move || {
             let pool = pool.clone();
             async move {

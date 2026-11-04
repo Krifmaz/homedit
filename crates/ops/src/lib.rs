@@ -32,6 +32,12 @@
 //! [`probe`] is a tiny HTTP client for `homedit healthcheck`, so the
 //! container image needs no `curl` or shell.
 
+/// This build's version: `HOMEDIT_VERSION` at build time (the release sets it), else Cargo.toml's.
+pub const VERSION: &str = match option_env!("HOMEDIT_VERSION") {
+    Some(v) => v,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 pub mod metrics;
 mod probe;
 
@@ -107,7 +113,7 @@ impl OpsState {
             metrics,
             checks: Vec::new(),
             metrics_token: None,
-            version: env!("CARGO_PKG_VERSION"),
+            version: VERSION,
         }
     }
 

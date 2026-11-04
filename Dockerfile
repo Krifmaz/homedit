@@ -32,8 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
     tar -xzf /tmp/trunk.tgz -C /usr/local/bin trunk && rm /tmp/trunk.tgz
 WORKDIR /web
 COPY web/ ./
+ARG VERSION=
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/web/target,id=homedit-web-target,sharing=locked \
+    case "$VERSION" in [0-9]*.[0-9]*.[0-9]*) export HOMEDIT_VERSION="$VERSION" ;; esac && \
     trunk build --release --locked
 
 # ---------------------------------------------------------------------------
@@ -45,6 +47,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
 FROM --platform=$BUILDPLATFORM messense/cargo-zigbuild:${ZIGBUILD_VERSION} AS build
 ARG RUST_VERSION
 ARG TARGETARCH
+# A release's version (X.Y.Z) is built in as HOMEDIT_VERSION; other builds keep Cargo.toml's.
+ARG VERSION=
 RUN case "$TARGETARCH" in \
         amd64) echo x86_64-unknown-linux-musl ;; \
         arm64) echo aarch64-unknown-linux-musl ;; \
@@ -60,6 +64,7 @@ COPY docs/releases ./docs/releases
 COPY --from=web /web/dist ./web/dist
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/src/target,id=homedit-target-${TARGETARCH},sharing=locked \
+    case "$VERSION" in [0-9]*.[0-9]*.[0-9]*) export HOMEDIT_VERSION="$VERSION" ;; esac && \
     cargo zigbuild --release --locked -p homedit --bin homedit --target "$(cat /rust-target)" && \
     cp "target/$(cat /rust-target)/release/homedit" /homedit
 # The data volume, owned by the runtime user (scratch has no mkdir), the CA

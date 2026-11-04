@@ -2,6 +2,14 @@
 
 Non-obvious calls made while building homedit, newest first.
 
+## 2026-11-04: Release on the kit's shared workflows
+
+- CI's Rust and web jobs are the kit's `kit-ci.yml`; homedit's own checks (the kit's stylesheets, `cargo doc`, the trunk build) go in its `check` input. The licence check and the image job with its smoke test stay homedit's, since the kit has neither.
+- Releases are the kit's `kit-release.yml` and `kit-docker.yml`. The version rule changes with them: PATCH by default, MINOR or MAJOR only when the change adds that version's `docs/releases/<version>.md`, instead of reading `feat:` from commit messages. The notes file already had to exist for What's new, so it now also picks the bump.
+- The kit tags through the release API and makes no version-bump commit, so the version is built in from `HOMEDIT_VERSION` (as the kit's template does with `APP_VERSION`, named for homedit so it can't clash). `Cargo.toml` keeps the version of the last release made the old way.
+- The static binaries are still the musl ones from the image (pulled anonymously, the package is public) through `kit-release`'s `files` input, not the kit's own glibc server tarballs, which would be built before the web app is embedded.
+- The `X.Y` image tag is kept (as one of `kit-docker`'s `extra-tags`), so anyone following `:0.3` still gets patch releases.
+
 ## 2026-11-04: Move the web app to Leptos on the kit
 
 - The web app moved from React to Leptos (the owner's call), so the kit's Leptos components are used as they are instead of copied into TypeScript. It is a Cargo workspace of its own in `web/`, so the server's `cargo test --workspace` never builds WebAssembly.

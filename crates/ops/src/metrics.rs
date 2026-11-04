@@ -129,7 +129,7 @@ impl std::fmt::Debug for Metrics {
 
 impl Default for Metrics {
     fn default() -> Self {
-        Self::new(env!("CARGO_PKG_VERSION"))
+        Self::new(crate::VERSION)
     }
 }
 

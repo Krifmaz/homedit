@@ -285,7 +285,7 @@ impl Default for ClientOptions {
             timeout: Duration::from_secs(10),
             connect_timeout: Duration::from_secs(5),
             accept_invalid_certs: false,
-            user_agent: concat!("homedit/", env!("CARGO_PKG_VERSION")).into(),
+            user_agent: format!("homedit/{}", crate::VERSION),
         }
     }
 }

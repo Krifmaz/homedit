@@ -71,7 +71,7 @@ async fn health_answers_the_version() {
     let (s, v) = call(&st, "GET", "/api/health", None, false).await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(v["ok"], json!(true));
-    assert_eq!(v["version"], json!(env!("CARGO_PKG_VERSION")));
+    assert_eq!(v["version"], json!(homedit::VERSION));
 }
 
 #[tokio::test]

@@ -47,7 +47,7 @@ impl Default for InfoState {
             cpu: Mutex::default(),
             http: reqwest::Client::builder()
                 .timeout(Duration::from_secs(8))
-                .user_agent(concat!("homedit/", env!("CARGO_PKG_VERSION")))
+                .user_agent(format!("homedit/{}", crate::VERSION))
                 .build()
                 .expect("static reqwest config is valid"),
         }

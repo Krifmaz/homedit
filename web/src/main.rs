@@ -2,6 +2,12 @@
 //! The server serves `index.html` with the dashboard inline (`#homedit-data`), so the first paint needs no
 //! call; everything after is `/api`.
 
+/// This build's version: `HOMEDIT_VERSION` at build time (the release sets it), else Cargo.toml's.
+const VERSION: &str = match option_env!("HOMEDIT_VERSION") {
+    Some(v) => v,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 mod appearance;
 mod backup;
 mod client;
@@ -65,7 +71,7 @@ pub fn kit_start(admin: bool, signed_in: bool) {
 
 fn main() {
     config::set(AppConfig::new(
-        KitApp::named(kitpages::APP_NAME).with_version(env!("CARGO_PKG_VERSION")),
+        KitApp::named(kitpages::APP_NAME).with_version(VERSION),
     ));
     kit_leptos::api::set_backend(client::backend());
     kit_leptos::crash::install();

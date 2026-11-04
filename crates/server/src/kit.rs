@@ -57,8 +57,8 @@ pub static SETTINGS: Table = Table {
 /// The name people see in What's new titles and bug report exports.
 pub const APP_NAME: &str = "homedit";
 
-/// The server's version (Cargo.toml's, which the release workflow sets).
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+/// The server's version.
+pub const VERSION: &str = crate::VERSION;
 
 /// The id of the data folder notice.
 pub const DATA_NOTICE: &str = "data";

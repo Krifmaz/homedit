@@ -220,7 +220,7 @@ pub fn probe_client() -> reqwest::Client {
         .connect_timeout(PROBE_TIMEOUT)
         .redirect(reqwest::redirect::Policy::none())
         .tls_danger_accept_invalid_certs(true)
-        .user_agent(concat!("homedit/", env!("CARGO_PKG_VERSION")))
+        .user_agent(format!("homedit/{}", crate::VERSION))
         .build()
         .expect("static reqwest config is valid")
 }

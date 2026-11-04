@@ -89,7 +89,7 @@ impl HttpProber {
             .redirect(policy)
             .tls_danger_accept_invalid_certs(true)
             .pool_max_idle_per_host(0)
-            .user_agent(concat!("homedit-scanner/", env!("CARGO_PKG_VERSION")))
+            .user_agent(format!("homedit-scanner/{}", crate::VERSION))
             .build()?;
         Ok(Self { client })
     }
