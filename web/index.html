@@ -10,8 +10,14 @@
        none lets those images load. -->
   <meta name="referrer" content="no-referrer">
   <title>homedit</title>
-  <link data-trunk rel="copy-file" href="public/favicon.svg">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <!-- the app icon: kit-icons draws web/icon.svg on the kit's tile into public/app-icons (not /icons/, which
+       serves the dashboard's own icon folder); regenerate with the command in web/README.md -->
+  <link data-trunk rel="copy-dir" href="public/app-icons">
+  <link rel="icon" href="/app-icons/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/app-icons/icon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/app-icons/apple-touch-icon.png">
+  <link rel="manifest" href="/app-icons/manifest.webmanifest">
+  <meta name="theme-color" content="#161617">
   <!-- the kit's colour tokens, the kit's components, the template's shell, then homedit's own rules -->
   <link data-trunk rel="css" href="static/css/tokens.css">
   <link data-trunk rel="css" href="static/css/kit.css">
