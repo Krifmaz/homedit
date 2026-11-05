@@ -273,18 +273,19 @@ help = "Off: only private and local addresses can be scanned."
 
 [keys.scan_concurrency]
 env = "HOMEDIT_SCAN_CONCURRENCY"
-default = 64
+default = 512
 group = "scanner"
 label = "Connections at once"
 min = 1
-max = 1024
+max = 4096
 advanced = true
 
 [keys.scan_rate]
 env = "HOMEDIT_SCAN_RATE"
-default = 300
+default = 0
 group = "scanner"
 label = "Connections per second"
-min = 1
+help = "0: no limit. Only hosts that answer are port-scanned, so a limit is rarely needed."
+min = 0
 max = 10000
 advanced = true

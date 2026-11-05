@@ -65,6 +65,7 @@ pub fn router() -> Router<AppState> {
         .route("/info/{id}", get(info::data))
         .route("/scan", get(scan::current).post(scan::start))
         .route("/scan/history", get(scan::history))
+        .route("/scan/networks", get(scan::networks))
         .route("/scan/schedule", get(schedule::get).put(schedule::put))
         .route("/openapi.yaml", get(docs::spec))
         .route("/docs", get(docs::page))

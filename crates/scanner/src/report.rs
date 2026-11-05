@@ -45,6 +45,11 @@ pub struct DiscoveredService {
     pub app: Option<AppMatch>,
     /// The container, when found through Docker.
     pub container: Option<ContainerRef>,
+    /// The app usually found on this port, when nothing better identified
+    /// it (for example "Sonarr" on 8989). Only a hint: [`app`](Self::app)
+    /// stays empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guess: Option<String>,
     /// Whether a dashboard card already points here. Filled in by
     /// [`ScanReport::mark_on_dashboard`]; always `false` straight from a scan.
     #[serde(default)]
@@ -73,7 +78,8 @@ impl DiscoveredService {
     }
 
     /// A card name for this service: the app name, else the page title, else
-    /// the `Server` header, else the container name, else `Service on :port`.
+    /// the `Server` header, else the container name, else the app usually on
+    /// this port, else `Service on port N`.
     pub fn display_name(&self) -> String {
         if let Some(app) = &self.app {
             return app.name.clone();
@@ -82,6 +88,7 @@ impl DiscoveredService {
         http.and_then(|h| h.title.clone())
             .or_else(|| http.and_then(|h| h.server.clone()))
             .or_else(|| self.container.as_ref().map(|c| c.name.clone()))
+            .or_else(|| self.guess.clone())
             .unwrap_or_else(|| format!("Service on port {}", self.port))
     }
 
@@ -146,6 +153,11 @@ pub struct HostResult {
     pub ip: IpAddr,
     /// The hostname it was reached by, if it came from DNS.
     pub hostname: Option<String>,
+    /// A label for the host: its container name on a Docker network, else
+    /// its reverse DNS name. Links keep using the address, since such names
+    /// often don't resolve in the browser.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     /// Open ports, sorted by port number.
     pub services: Vec<DiscoveredService>,
 }
@@ -243,6 +255,7 @@ mod tests {
             }),
             app: None,
             container: None,
+            guess: None,
             on_dashboard: false,
         }
     }
@@ -304,6 +317,7 @@ mod tests {
             hosts: vec![HostResult {
                 ip: "10.0.1.7".parse().unwrap(),
                 hostname: Some("media.lan".into()),
+                name: None,
                 services: vec![
                     svc(8096, Scheme::Http),
                     svc(443, Scheme::Https),
