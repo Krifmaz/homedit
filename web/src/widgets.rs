@@ -96,6 +96,7 @@ pub fn ServiceWidget(id: String) -> impl IntoView {
             }
             .into_any();
         }
+        let problem = problem(&p);
         let d = p.data.unwrap_or(Value::Null);
         let stats: Vec<Value> = d
             .get("fields")
@@ -105,12 +106,6 @@ pub fn ServiceWidget(id: String) -> impl IntoView {
             .into_iter()
             .take(MAX_STATS)
             .collect();
-        let problem = p.error.or_else(|| {
-            d.get("error")
-                .and_then(Value::as_str)
-                .filter(|s| !s.is_empty())
-                .map(str::to_owned)
-        });
         if stats.is_empty() && problem.is_none() {
             return ().into_any();
         }
@@ -132,7 +127,7 @@ pub fn ServiceWidget(id: String) -> impl IntoView {
                         }).collect_view()}
                     </div>
                 })}
-                {problem.map(|m| view! { <div class="widget-error" role="status" title=m.clone()>{m.clone()}</div> })}
+                {problem.map(|m| view! { <WidgetError label="Widget" message=m/> })}
             </div>
         }
         .into_any()
@@ -218,15 +213,44 @@ fn info_poll(w: &InfoWidget, ms: u64) -> ReadSignal<Poll> {
     poll(format!("/info/{}", crate::model::js_encode(&w.id)), ms)
 }
 
+/// What went wrong for a widget: the server's `{"error": …}` (its upstream failed), else the call's own failure.
+pub fn problem(p: &Poll) -> Option<String> {
+    p.data
+        .as_ref()
+        .and_then(|d| d.get("error"))
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .or_else(|| p.error.clone())
+}
+
+/// A widget's problem in plain words, with the kit's Copy button; a click on the sentence opens the whole text
+/// (both through the kit's page listener, [`kit_leptos::details::init`]). A click here never follows the card's
+/// link around it.
+#[component]
+pub fn WidgetError(
+    /// What the widget is ("Weather"), the details' title.
+    label: &'static str,
+    /// The sentence.
+    message: String,
+) -> impl IntoView {
+    let title = format!("{label} unavailable");
+    view! {
+        <div class="widget-error" role="status" on:click=|e| e.prevent_default()>
+            <span class="widget-error-text" data-details=message.clone() data-details-title=title>
+                {message.clone()}
+            </span>
+            {kit_leptos::html::raw(kit_leptos::details::copy_button_html(&message))}
+        </div>
+    }
+}
+
 fn loading_or_failed(label: &'static str, p: &Poll) -> AnyView {
     if p.loading {
         view! { <span class="info-loading" aria-busy="true">{label}" …"</span> }.into_any()
     } else {
-        let e = p
-            .error
-            .clone()
-            .unwrap_or_else(|| "Unexpected response".into());
-        view! { <span class="info-error" role="status" title=e>{label}" unavailable"</span> }
+        let message = problem(p).unwrap_or_else(|| "Unexpected response".into());
+        view! { <div class="info-widget info-failed"><WidgetError label=label message=message/></div> }
             .into_any()
     }
 }

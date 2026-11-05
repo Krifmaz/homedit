@@ -458,10 +458,16 @@ async fn info_widget_data() {
     )
     .await;
     assert_eq!((code, body.as_str()), (StatusCode::OK, "{}"));
-    // No coordinates and no Docker host: both report a readable error.
+    // No coordinates and no Docker host: both answer 200 with a readable error, never a 502.
     for k in ["openmeteo", "docker"] {
         let (code, body) = call(&st, "GET", &format!("/api/info/{}", id(k)), None, None).await;
-        assert_eq!(code, StatusCode::BAD_GATEWAY, "{k}: {body}");
+        assert_eq!(code, StatusCode::OK, "{k}: {body}");
+        let v: Value = serde_json::from_str(&body).unwrap();
+        let e = v["error"].as_str().unwrap_or_default();
+        assert!(
+            !e.is_empty() && v.as_object().unwrap().len() == 1,
+            "{k}: {v}"
+        );
     }
     if cfg!(target_os = "linux") {
         let (code, body) = call(

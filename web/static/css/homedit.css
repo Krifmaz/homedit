@@ -30,6 +30,7 @@
 .info-sub { font-size: 12px; color: var(--muted); }
 .info-loading, .info-error { font-size: 13px; color: var(--muted); }
 .info-error { color: var(--err); cursor: help; }
+.info-failed { min-width: 0; max-width: 260px; }
 .info-count.is-up { color: var(--ok); }
 .info-count.is-down { color: var(--err); }
 .info-resources { gap: 3px; }
@@ -88,7 +89,9 @@ a.svc:hover, a.bookmark:hover { border-color: var(--accent); }
 .stat-value { font-weight: 650; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-unit { font-weight: 400; font-size: 12px; color: var(--muted); }
 .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.widget-error { font-size: 12px; color: var(--err); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.widget-error { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; color: var(--err); }
+.widget-error-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.widget-error .copy-btn { color: var(--muted); }
 
 /* ---------- bookmarks ---------- */
 .bookmarks { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); margin-top: 28px; }
