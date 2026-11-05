@@ -68,6 +68,15 @@ finished scan of a bare address that found nothing offers a one-click
 - The question uses `window.confirm` like the existing "all 65,535 ports"
   prompt. When the kit's confirm dialog is adopted, both switch together.
 
+## 2026-11-05: Danger buttons use the kit's style
+
+homedit.css re-coloured `.btn.danger` text to `var(--err)` on top of the kit's
+red fill, so Delete and Clear were red on red. The override is gone: Delete,
+Clear and Remove are the kit's white-on-red in every theme. Ghost icon buttons
+that also carry `danger` (the ✕ on cards and bookmarks in edit mode) now look
+like the kit's ghost buttons (muted, text colour on hover) instead of red; the
+confirm dialog behind them still says it deletes.
+
 ## 2026-11-05: Name scanned services from cleaned page titles
 
 - The scanner cleans a page title once, when it reads it (`scanner::naming::clean_title`), and stores the cleaned text in `http.title`. App matching still sees the raw title. That way the server's "Add to dashboard" name and the web app's live list agree without a second copy of the rules in the WASM app.
