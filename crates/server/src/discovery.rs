@@ -153,6 +153,7 @@ pub async fn run_once(state: &AppState, env: Option<&DockerHost>) -> anyhow::Res
         return Ok(0);
     }
     crate::secrets::seal(&mut dash, state.auth.secrets());
+    crate::icons::store_inline_icons(&mut dash, &state.icon_dir())?;
     let summary = format!("docker discovery added {added} card(s)");
     match state
         .db

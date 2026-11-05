@@ -49,6 +49,7 @@ pub async fn import_on_start(state: &AppState, dir: &Path) -> anyhow::Result<Opt
     }
     let mut dash = report.dashboard;
     secrets::seal(&mut dash, state.auth.secrets());
+    crate::icons::store_inline_icons(&mut dash, &state.icon_dir())?;
     let summary = format!("imported from {}", dir.display());
     let (version, _) = state
         .db
@@ -99,6 +100,8 @@ pub async fn upload(
         let mut dash = crate::export::from_yaml(&text)
             .map_err(|e| ApiError::new(axum::http::StatusCode::UNPROCESSABLE_ENTITY, e))?;
         secrets::seal(&mut dash, state.auth.secrets());
+        crate::icons::store_inline_icons(&mut dash, &state.icon_dir())
+            .map_err(ApiError::internal)?;
         let (version, _) = state
             .db
             .save_dashboard(
@@ -123,6 +126,7 @@ pub async fn upload(
         .map_err(|e| ApiError::new(axum::http::StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
     let mut dash = report.dashboard;
     secrets::seal(&mut dash, state.auth.secrets());
+    crate::icons::store_inline_icons(&mut dash, &state.icon_dir()).map_err(ApiError::internal)?;
     let (version, _) = state
         .db
         .save_dashboard(

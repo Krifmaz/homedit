@@ -147,6 +147,7 @@ impl AppState {
             kit: Arc::new(kit),
         };
         secrets::seal_stored(&state).await?;
+        icons::store_inline_icons_stored(&state).await?;
         Ok(state)
     }
 

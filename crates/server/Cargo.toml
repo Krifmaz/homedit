@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
+base64 = "0.23"
 futures.workspace = true
 homedit-core.workspace = true
 homedit-db.workspace = true

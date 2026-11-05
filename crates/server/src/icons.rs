@@ -180,9 +180,233 @@ pub async fn upload(
     Err(ApiError::bad_request("missing form field \"file\""))
 }
 
+/// The file extension for an inline icon's media type.
+fn ext_for_mime(mime: &str) -> Option<&'static str> {
+    Some(match mime.trim().to_ascii_lowercase().as_str() {
+        "image/png" => "png",
+        "image/svg+xml" => "svg",
+        "image/webp" => "webp",
+        "image/jpeg" | "image/jpg" => "jpg",
+        "image/gif" => "gif",
+        "image/x-icon" | "image/vnd.microsoft.icon" | "image/ico" => "ico",
+        _ => return None,
+    })
+}
+
+/// Decodes a `data:image/...` URL into its extension and bytes. Returns
+/// `None` for anything that is not an image this server accepts as an
+/// upload, or that is larger than [`MAX_ICON_BYTES`].
+pub fn decode_data_url(url: &str) -> Option<(&'static str, Vec<u8>)> {
+    use base64::Engine as _;
+    let rest = url.trim().strip_prefix("data:")?;
+    let (meta, payload) = rest.split_once(',')?;
+    let mut parts = meta.split(';');
+    let ext = ext_for_mime(parts.next()?)?;
+    let base64 = parts.any(|p| p.trim().eq_ignore_ascii_case("base64"));
+    let bytes = if base64 {
+        let clean: String = payload.chars().filter(|c| !c.is_whitespace()).collect();
+        base64::engine::general_purpose::STANDARD
+            .decode(clean.trim_end_matches('='))
+            .or_else(|_| {
+                base64::engine::general_purpose::STANDARD_NO_PAD.decode(clean.trim_end_matches('='))
+            })
+            .ok()?
+    } else {
+        percent_decode(payload)?
+    };
+    (!bytes.is_empty() && bytes.len() <= MAX_ICON_BYTES).then_some((ext, bytes))
+}
+
+fn percent_decode(s: &str) -> Option<Vec<u8>> {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            let hex = std::str::from_utf8(b.get(i + 1..i + 3)?).ok()?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    Some(out)
+}
+
+/// FNV-1a, so the same image always gets the same file name.
+fn fnv1a(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325, |h, b| {
+        (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
+    })
+}
+
+/// Writes one inline icon to `dir` and returns its config name
+/// (`custom/<file>`), or `None` when `icon` is not a usable `data:` image.
+fn store_one(dir: &Path, label: &str, icon: &str) -> std::io::Result<Option<String>> {
+    let Some((ext, bytes)) = decode_data_url(icon) else {
+        return Ok(None);
+    };
+    let stem = slugify(label);
+    let stem = if stem.is_empty() { "icon".into() } else { stem };
+    let file = format!("{stem}-{:08x}.{ext}", fnv1a(&bytes) as u32);
+    let path = dir.join(&file);
+    if !path.exists() {
+        std::fs::create_dir_all(dir)?;
+        std::fs::write(&path, &bytes)?;
+    }
+    Ok(Some(format!("custom/{file}")))
+}
+
+/// Turns every `data:` image icon in `dash` (cards, groups, bookmarks) into
+/// an uploaded icon in `dir`, referenced as `custom/<file>`, the same as an
+/// icon uploaded from the editor. The dashboard only loads icons it can
+/// resolve, so an inline icon would show in the editor but fall back to
+/// initials on the card. Returns whether anything changed.
+pub fn store_inline_icons(dash: &mut homedit_core::Dashboard, dir: &Path) -> std::io::Result<bool> {
+    fn fix(
+        dir: &Path,
+        label: &str,
+        icon: &mut Option<String>,
+        changed: &mut bool,
+    ) -> std::io::Result<()> {
+        if let Some(i) = icon.as_deref()
+            && i.trim_start().starts_with("data:")
+            && let Some(name) = store_one(dir, label, i)?
+        {
+            *icon = Some(name);
+            *changed = true;
+        }
+        Ok(())
+    }
+    fn walk(
+        dir: &Path,
+        groups: &mut [homedit_core::Group],
+        changed: &mut bool,
+    ) -> std::io::Result<()> {
+        for g in groups {
+            fix(dir, &g.name, &mut g.layout.icon, changed)?;
+            for s in &mut g.services {
+                fix(dir, &s.name, &mut s.icon, changed)?;
+            }
+            walk(dir, &mut g.groups, changed)?;
+        }
+        Ok(())
+    }
+    let mut changed = false;
+    walk(dir, &mut dash.groups, &mut changed)?;
+    for bg in &mut dash.bookmark_groups {
+        fix(dir, &bg.name, &mut bg.layout.icon, &mut changed)?;
+        for b in &mut bg.bookmarks {
+            fix(dir, &b.name, &mut b.icon, &mut changed)?;
+        }
+    }
+    Ok(changed)
+}
+
+/// Moves `data:` icons left in the stored dashboard (saved before icons were
+/// stored as files) into the icon folder. Runs at startup.
+pub async fn store_inline_icons_stored(state: &AppState) -> anyhow::Result<()> {
+    let (version, mut dash) = state.db.load_versioned().await?;
+    if store_inline_icons(&mut dash, &state.icon_dir())? {
+        state
+            .db
+            .save_dashboard(
+                &dash,
+                Some(version),
+                Some("system"),
+                Some("stored inline icons as files"),
+            )
+            .await?;
+        tracing::info!("moved inline (data:) icons to the icon folder");
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decodes_data_urls() {
+        let (ext, b) = decode_data_url("data:image/png;base64,UE5H").unwrap();
+        assert_eq!((ext, b.as_slice()), ("png", &b"PNG"[..]));
+        let (ext, b) = decode_data_url("data:image/svg+xml,%3Csvg%2F%3E").unwrap();
+        assert_eq!((ext, b.as_slice()), ("svg", &b"<svg/>"[..]));
+        assert_eq!(
+            decode_data_url("data:image/x-icon;base64,AAAB").unwrap().0,
+            "ico"
+        );
+        assert!(decode_data_url("data:text/html;base64,PGI+").is_none());
+        assert!(decode_data_url("data:image/png;base64,").is_none());
+        assert!(decode_data_url("sonarr.png").is_none());
+    }
+
+    #[test]
+    fn stores_inline_icons_everywhere() {
+        use homedit_core::{Bookmark, BookmarkGroup, Dashboard, Group, Service};
+        let dir = tempfile::tempdir().unwrap();
+        let mut svc = Service::new("Login | OPNsense", None);
+        svc.icon = Some("data:image/png;base64,UE5H".into());
+        let mut keep = Service::new("Sonarr", None);
+        keep.icon = Some("sonarr.png".into());
+        let mut bad = Service::new("Bad", None);
+        bad.icon = Some("data:text/html,x".into());
+        let mut g = Group {
+            name: "Net".into(),
+            services: vec![svc, keep, bad],
+            ..Group::default()
+        };
+        g.layout.icon = Some("data:image/svg+xml,%3Csvg%2F%3E".into());
+        let mut d = Dashboard {
+            groups: vec![g],
+            bookmark_groups: vec![BookmarkGroup {
+                name: "B".into(),
+                bookmarks: vec![Bookmark {
+                    name: "Docs".into(),
+                    icon: Some("data:image/png;base64,UE5H".into()),
+                    ..Bookmark::default()
+                }],
+                ..BookmarkGroup::default()
+            }],
+            ..Dashboard::default()
+        };
+        assert!(store_inline_icons(&mut d, dir.path()).unwrap());
+        let s = &d.groups[0].services;
+        let name = s[0].icon.clone().unwrap();
+        assert!(
+            name.starts_with("custom/login-opnsense-") && name.ends_with(".png"),
+            "{name}"
+        );
+        assert!(icons::resolve(&name).is_some());
+        let file = dir.path().join(name.trim_start_matches("custom/"));
+        assert_eq!(std::fs::read(file).unwrap(), b"PNG");
+        assert_eq!(s[1].icon.as_deref(), Some("sonarr.png"));
+        assert_eq!(
+            s[2].icon.as_deref(),
+            Some("data:text/html,x"),
+            "non-images are left alone"
+        );
+        assert!(
+            d.groups[0]
+                .layout
+                .icon
+                .as_deref()
+                .unwrap()
+                .ends_with(".svg")
+        );
+        assert!(
+            d.bookmark_groups[0].bookmarks[0]
+                .icon
+                .as_deref()
+                .unwrap()
+                .starts_with("custom/docs-")
+        );
+        assert!(
+            !store_inline_icons(&mut d, dir.path()).unwrap(),
+            "a second pass changes nothing"
+        );
+    }
 
     #[test]
     fn slugs() {
