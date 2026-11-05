@@ -120,8 +120,6 @@ a.svc:hover, a.bookmark:hover { border-color: var(--accent); }
 .svc:hover .edit-actions, .svc:focus-within .edit-actions { opacity: 1; }
 @media (hover: none) { .edit-actions { opacity: 1; } }
 .btn.icon.sm { padding: 4px 7px; }
-.btn.danger { color: var(--err); }
-.btn.danger:hover { border-color: var(--err); }
 .drag-handle { cursor: grab; touch-action: none; }
 .dragging { opacity: .4; }
 .add-tile {
