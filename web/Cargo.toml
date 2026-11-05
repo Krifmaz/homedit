@@ -18,8 +18,8 @@ path = "src/main.rs"
 
 # The kit, pinned to the same tag as the server's Cargo.toml.
 [dependencies]
-kit-leptos = { git = "https://github.com/Krifmaz/kit", tag = "v0.2.0" }
-kit-rules = { git = "https://github.com/Krifmaz/kit", tag = "v0.2.0" }
+kit-leptos = { git = "https://github.com/Krifmaz/kit", tag = "v0.2.1" }
+kit-rules = { git = "https://github.com/Krifmaz/kit", tag = "v0.2.1" }
 leptos = { version = "=0.8.23", features = ["csr"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

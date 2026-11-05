@@ -2,6 +2,12 @@
 
 Non-obvious calls made while building homedit, newest first.
 
+## 2026-11-05: A widget's failed upstream is a 200
+
+- `GET /api/info/{id}` answers `200 {"error": "<sentence>"}` when its upstream fails (weather, Docker, host resources), like `/api/widgets/{id}/data` already did, not 502 (which read as homedit itself being down) and not 424 (an error status still lands in the client's error path and in proxies' and browsers' logs as a failure). Errors are not cached, so the next poll retries.
+- The card shows the sentence with the kit's Copy button (`details::copy_button_html`, handled by the kit's page listener) rather than the `CopyButton` view: that one stops the click's propagation, so the card's link around it could not cancel the navigation.
+- The kit fix for the "server isn't answering" banner (a marked 502–504 is one call's error, not the server down) went into the kit (Krifmaz/kit#28) since no kit release had it.
+
 ## 2026-11-05: Fast and accurate network scan (after Caddymium's)
 
 - Live hosts first: addresses from a range get a quick connect to 16 common ports (a refused connection counts as an answer), a reverse DNS lookup and a look at the ARP table, and only hosts that answer are port-scanned. Addresses and hostnames typed one by one skip the check and are always scanned, since the admin named them. `discover: false` in the request brings back the old scan-everything behaviour.

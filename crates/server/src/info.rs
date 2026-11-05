@@ -321,7 +321,10 @@ pub async fn data(
                 .insert(id, (Instant::now(), v.clone()));
             Ok(Json(v))
         }
-        Err(message) => Err(ApiError::new(axum::http::StatusCode::BAD_GATEWAY, message)),
+        // An upstream that fails (no coordinates, a Docker host that doesn't answer) is this widget's problem,
+        // not homedit's: 200 with the sentence, which the card shows with Copy. Not cached, so the next poll
+        // tries again.
+        Err(message) => Ok(Json(json!({ "error": message }))),
     }
 }
 

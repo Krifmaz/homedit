@@ -156,7 +156,10 @@ The strip above the groups (gethomepage's `widgets.yaml`) is filled by
 | `openmeteo`  | Temperature and conditions          | `latitude`, `longitude`          | 10 min |
 | `docker`     | Running and stopped containers      | uses the configured Docker hosts | 15 s   |
 
-Weather comes from Open-Meteo (no API key), requested by the server.
+Weather comes from Open-Meteo (no API key), requested by the server. When the
+upstream fails (no coordinates, Open-Meteo or a Docker host not answering, the
+disk path missing) the answer is still `200`, with `{"error": "<sentence>"}`;
+the widget shows the sentence with Copy, and the next poll tries again.
 
 ## Docker discovery
 
