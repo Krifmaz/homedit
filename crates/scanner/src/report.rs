@@ -77,15 +77,18 @@ impl DiscoveredService {
         }
     }
 
-    /// A card name for this service: the app name, else the page title, else
-    /// the `Server` header, else the container name, else the app usually on
-    /// this port, else `Service on port N`.
+    /// A card name for this service: the app name, else the page title
+    /// without "Login", "Dashboard" and the like (see
+    /// [`clean_title`](crate::naming::clean_title)), else the `Server`
+    /// header, else the container name, else the app usually on this port,
+    /// else `Service on port N`.
     pub fn display_name(&self) -> String {
         if let Some(app) = &self.app {
             return app.name.clone();
         }
         let http = self.http.as_ref();
-        http.and_then(|h| h.title.clone())
+        http.and_then(|h| h.title.as_deref())
+            .and_then(crate::naming::clean_title)
             .or_else(|| http.and_then(|h| h.server.clone()))
             .or_else(|| self.container.as_ref().map(|c| c.name.clone()))
             .or_else(|| self.guess.clone())

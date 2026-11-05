@@ -552,3 +552,55 @@ async fn docker_ports_come_first_and_containers_are_named() {
     assert!(!report.hosts.iter().any(|h| h.ip == own));
     assert!(!report.scanned_addresses.contains(&own));
 }
+
+#[tokio::test]
+async fn names_services_without_login_words() {
+    let ip = localhost();
+    let opnsense = common::http(
+        ip,
+        vec![Route::new(
+            "/",
+            200,
+            r#"<html><head><title>Login | OPNsense</title></head><body>opnsense</body></html>"#,
+        )],
+    )
+    .await;
+    let photos = common::http(
+        ip,
+        vec![Route::new(
+            "/",
+            200,
+            "<html><head><title>Sign in · Family Photos</title></head></html>",
+        )],
+    )
+    .await;
+    let blank = common::http(
+        ip,
+        vec![Route::new("/", 200, "<title>Dashboard</title>").header("server", "Caddy")],
+    )
+    .await;
+
+    let scanner = Scanner::new(fast_policy()).unwrap();
+    let list = [opnsense.port(), photos.port(), blank.port()];
+    let report = scanner
+        .scan(request("127.0.0.1", &list), None)
+        .await
+        .unwrap();
+
+    let opn = service(&report, opnsense.port());
+    assert_eq!(opn.app.as_ref().map(|a| a.id.as_str()), Some("opnsense"));
+    assert_eq!(opn.suggestion("127.0.0.1").name, "OPNsense");
+
+    let ph = service(&report, photos.port());
+    assert!(ph.app.is_none());
+    assert_eq!(
+        ph.http.as_ref().unwrap().title.as_deref(),
+        Some("Family Photos")
+    );
+    assert_eq!(ph.suggestion("127.0.0.1").name, "Family Photos");
+
+    // A title that is only boilerplate falls through to the Server header.
+    let bl = service(&report, blank.port());
+    assert_eq!(bl.http.as_ref().unwrap().title, None);
+    assert_eq!(bl.display_name(), "Caddy");
+}
