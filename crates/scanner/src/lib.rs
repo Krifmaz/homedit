@@ -65,6 +65,7 @@ pub mod diff;
 pub mod docker;
 mod error;
 pub mod fingerprint;
+pub mod naming;
 pub mod net;
 pub mod policy;
 pub mod ports;

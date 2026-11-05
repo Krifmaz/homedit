@@ -67,3 +67,11 @@ finished scan of a bare address that found nothing offers a one-click
   widening stays an explicit choice in the UI.
 - The question uses `window.confirm` like the existing "all 65,535 ports"
   prompt. When the kit's confirm dialog is adopted, both switch together.
+
+## 2026-11-05: Name scanned services from cleaned page titles
+
+- The scanner cleans a page title once, when it reads it (`scanner::naming::clean_title`), and stores the cleaned text in `http.title`. App matching still sees the raw title. That way the server's "Add to dashboard" name and the web app's live list agree without a second copy of the rules in the WASM app.
+- Cleaning splits on separators (`|`, spaced `-`, `·`, `»`, `: ` ...), drops "Login", "Sign in", "Welcome to", trailing "Dashboard"/"Page", and parts that are only such words ("Home", "Dashboard"). "Home" is only dropped when it stands alone, so "Home Assistant" and "Home Lab" stay. A part that equals a built-in app's name wins, in the app's own spelling ("Home - grafana" is "Grafana").
+- A title that is only boilerplate becomes no title, so the name falls through to the Server header, the container or the port's usual app.
+- OPNsense and pfSense joined the catalogue (title match, both have gethomepage widgets), so their login pages are recognised as apps, not just renamed.
+- Scan reports saved before this keep their raw titles; `display_name` cleans them again when building a suggestion.

@@ -142,7 +142,10 @@ pub struct HttpInfo {
     pub scheme: Scheme,
     /// Status code of `/`.
     pub status: u16,
-    /// Page title of `/`.
+    /// Page title of `/`, cleaned up into a name: no "Login |", "Sign in ·",
+    /// "Dashboard" and the like ([`clean_title`](crate::naming::clean_title)).
+    /// `None` when the title was empty or only such words. Matching uses the
+    /// raw title.
     pub title: Option<String>,
     /// `Server` header of `/`.
     pub server: Option<String>,
@@ -221,7 +224,7 @@ impl Fingerprinter {
         let info = HttpInfo {
             scheme,
             status: root.status,
-            title,
+            title: title.as_deref().and_then(crate::naming::clean_title),
             server,
             redirect,
             favicon,
