@@ -31,7 +31,7 @@ jobs:
   # fmt, clippy -D warnings and tests of the server workspace and the web app (kit-ci), plus homedit's own checks:
   # the kit's stylesheets against the pinned kit, the API docs and the web build.
   test:
-    uses: Krifmaz/kit/.github/workflows/kit-ci.yml@v0.2.0
+    uses: Krifmaz/kit/.github/workflows/kit-ci.yml@v0.2.1
     with:
       rust-dirs: .
       wasm-dirs: web
