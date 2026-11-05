@@ -37,7 +37,7 @@ tile and writes the whole set (favicon, PNGs, Apple touch and maskable icons, we
 glyph, run this in the repository root and commit the result:
 
 ```sh
-cargo install --git https://github.com/Krifmaz/kit --tag v0.3.0 kit-icons --locked
+cargo install --git https://github.com/Krifmaz/kit --tag v0.4.0 kit-icons --locked
 kit-icons web/icon.svg web/public/app-icons --name homedit --base /app-icons/
 ```
 
