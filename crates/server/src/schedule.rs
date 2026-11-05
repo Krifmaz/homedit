@@ -158,9 +158,15 @@ pub async fn get(
 pub async fn put(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Json(mut body): Json<Schedule>,
 ) -> Result<Json<Schedule>, ApiError> {
     body.validate()?;
+    // Rescans run without a browser: keep the address the admin used, for
+    // the Docker host's published ports.
+    if body.request.docker_host.is_none() {
+        body.request.docker_host = scan::docker_host(&headers).await;
+    }
     let old = load(&state).await.map_err(ApiError::internal)?;
     body.last_run_at = old.last_run_at;
     body.request.requested_by = None;

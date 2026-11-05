@@ -7,6 +7,13 @@
 //!   and when finished the report with every service marked `onDashboard`
 //!   or not, plus a ready-made card suggestion for each.
 //! * `GET /api/scan/history` lists stored reports, newest first.
+//! * `GET /api/scan/networks` lists the server's private networks (each
+//!   interface's /24, Docker ones marked), the default scan targets.
+//!
+//! Scans list the Docker host's published ports first when a Docker address
+//! is set (`HOMEDIT_DOCKER_HOST`), shown at the server's LAN address or, in a
+//! container, at the address the admin opened homedit at. Ranges skip the
+//! server's own addresses, and only hosts that answer are port-scanned.
 //!
 //! Each finished scan is compared with the previous stored one. The
 //! changes (`diff`: services that appeared, disappeared or changed) go into
@@ -14,17 +21,22 @@
 //! readable line per change. Scheduled rescans live in [`crate::schedule`].
 //!
 //! Policy comes from the environment: `HOMEDIT_SCAN_ALLOW_PUBLIC=true`
-//! allows non-private targets, `HOMEDIT_SCAN_CONCURRENCY` and
-//! `HOMEDIT_SCAN_RATE` (connects per second) tune the load. Scans are plain
+//! allows non-private targets, `HOMEDIT_SCAN_CONCURRENCY` (512) and
+//! `HOMEDIT_SCAN_RATE` (connects per second, 0 = no limit, the default)
+//! tune the load. Scans are plain
 //! TCP connects with no extra privileges, and every scan is logged (target
 //! `scanner::audit` and the `scan_reports` table).
 
+use std::net::IpAddr;
 use std::sync::Mutex;
 
 use axum::Json;
 use axum::extract::State;
-use axum::http::StatusCode;
-use scanner::{ScanDiff, ScanEvent, ScanPolicy, ScanReport, ScanRequest, Scanner};
+use axum::http::{HeaderMap, StatusCode, header};
+use scanner::{
+    DockerEndpoint, LocalNetwork, ScanDiff, ScanEvent, ScanPolicy, ScanReport, ScanRequest,
+    Scanner, classify,
+};
 use serde::Serialize;
 use serde_json::Value;
 use sqlx::Row;
@@ -34,7 +46,7 @@ use crate::status::LiveEvent;
 use crate::{ApiError, AppState};
 
 /// Progress events kept for `GET /api/scan`.
-pub const MAX_EVENTS: usize = 500;
+pub const MAX_EVENTS: usize = 2_000;
 
 /// State of the current or last scan.
 #[derive(Debug, Clone, Default, Serialize)]
@@ -60,6 +72,8 @@ pub struct Job {
 pub struct ScanJobs {
     scanner: Scanner,
     job: Mutex<Job>,
+    networks: Vec<LocalNetwork>,
+    docker: Option<DockerEndpoint>,
 }
 
 fn parse_var<T: std::str::FromStr>(
@@ -94,9 +108,23 @@ impl ScanJobs {
         if let Some(v) = parse_var(&get, "HOMEDIT_SCAN_RATE")? {
             p.connects_per_second = v;
         }
+        let (networks, own) = scanner::local_networks();
+        let mut scanner = Scanner::new(p)?.with_own_addresses(own);
+        let docker = get("HOMEDIT_DOCKER_HOST")
+            .filter(|v| !v.trim().is_empty())
+            .and_then(|v| v.parse::<DockerEndpoint>().ok());
+        if let Some(ep) = &docker {
+            // Published ports are reached at the server's LAN address when it
+            // has one (host networking or no container); in a container the
+            // request says where (see `docker_host`).
+            let lan = networks.iter().find(|n| !n.docker).map(|n| n.address);
+            scanner = scanner.with_docker(ep.clone(), lan);
+        }
         Ok(Self {
-            scanner: Scanner::new(p)?,
+            scanner,
             job: Mutex::new(Job::default()),
+            networks,
+            docker,
         })
     }
 
@@ -121,11 +149,97 @@ pub struct Started {
 pub async fn start(
     RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(mut req): Json<ScanRequest>,
 ) -> Result<(StatusCode, Json<Started>), ApiError> {
     req.requested_by = Some(admin.author());
+    if req.docker_host.is_none() {
+        req.docker_host = docker_host(&headers).await;
+    }
     let id = begin(&state, req)?;
     Ok((StatusCode::ACCEPTED, Json(Started { id })))
+}
+
+/// The address the admin reached homedit at, when it is a private one: where
+/// a Docker host's published ports are reached from the browser. `None`
+/// behind a public name or when the server knows its LAN address itself.
+pub async fn docker_host(headers: &HeaderMap) -> Option<IpAddr> {
+    let host = headers
+        .get("x-forwarded-host")
+        .or_else(|| headers.get(header::HOST))?
+        .to_str()
+        .ok()?
+        .split(',')
+        .next()?
+        .trim();
+    let name = match host.rsplit_once(':') {
+        // `[fd00::1]:3000`, `10.0.1.5:3000`, `nas.lan:3000`; a bare IPv6
+        // address has more than one colon and no brackets.
+        Some((h, p)) if p.bytes().all(|b| b.is_ascii_digit()) && !h.ends_with(':') => h,
+        _ => host,
+    };
+    let name = name.trim_start_matches('[').trim_end_matches(']');
+    let ip = match name.parse::<IpAddr>() {
+        Ok(ip) => ip,
+        Err(_) => {
+            let found = tokio::time::timeout(
+                std::time::Duration::from_secs(2),
+                tokio::net::lookup_host((name, 0)),
+            )
+            .await
+            .ok()?
+            .ok()?;
+            found.map(|a| a.ip()).find(IpAddr::is_ipv4)?
+        }
+    };
+    matches!(
+        classify(ip),
+        scanner::AddressClass::Private | scanner::AddressClass::LinkLocal
+    )
+    .then_some(ip)
+}
+
+/// One network of the server, as `GET /api/scan/networks` lists it.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Network {
+    /// The range, e.g. `10.0.1.0/24`.
+    pub cidr: String,
+    /// The interface, e.g. `eth0`.
+    pub interface: String,
+    /// The server's own address on it (skipped by scans).
+    pub address: String,
+    /// Whether it is a Docker network.
+    pub docker: bool,
+}
+
+/// `GET /api/scan/networks`: the server's private networks, LAN first.
+pub async fn networks(
+    RequireAdmin(_): RequireAdmin,
+    State(state): State<AppState>,
+) -> Json<Vec<Network>> {
+    let jobs = &state.scans;
+    // Inside a container every interface is on a Docker network, which
+    // only the Docker API can tell.
+    let containers: Vec<IpAddr> = match &jobs.docker {
+        Some(ep) => scanner::docker::inventory(ep, jobs.scanner.catalogue())
+            .await
+            .map(|i| i.addresses.into_iter().map(|a| a.ip).collect())
+            .unwrap_or_default(),
+        None => Vec::new(),
+    };
+    let mut out: Vec<Network> = jobs
+        .networks
+        .iter()
+        .map(|n| Network {
+            cidr: n.net.to_string(),
+            interface: n.interface.clone(),
+            address: n.address.to_string(),
+            docker: n.docker || containers.iter().any(|ip| n.net.contains(ip)),
+        })
+        .collect();
+    out.sort_by_key(|n| n.docker);
+    Json(out)
 }
 
 /// Whether a scan is running now.
@@ -305,4 +419,29 @@ pub async fn history(
             })
             .collect(),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn host(v: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert(header::HOST, v.parse().unwrap());
+        h
+    }
+
+    #[tokio::test]
+    async fn docker_host_from_the_address_used() {
+        let ip = |s: &str| Some(s.parse::<IpAddr>().unwrap());
+        assert_eq!(docker_host(&host("10.0.1.5:3000")).await, ip("10.0.1.5"));
+        assert_eq!(docker_host(&host("192.168.1.2")).await, ip("192.168.1.2"));
+        assert_eq!(docker_host(&host("[fd00::5]:3000")).await, ip("fd00::5"));
+        // Public and loopback addresses are no use to a LAN browser.
+        assert_eq!(docker_host(&host("8.8.8.8:3000")).await, None);
+        assert_eq!(docker_host(&host("127.0.0.1:3000")).await, None);
+        let mut h = host("127.0.0.1:3000");
+        h.insert("x-forwarded-host", "10.0.1.9:443".parse().unwrap());
+        assert_eq!(docker_host(&h).await, ip("10.0.1.9"));
+    }
 }

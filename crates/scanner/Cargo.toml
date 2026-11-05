@@ -12,6 +12,8 @@ name = "scanner"
 
 [dependencies]
 base64 = "0.23"
+dns-lookup = "4.0.2"
+if-addrs = "0.15.0"
 ipnet = { version = "2", features = ["serde"] }
 reqwest.workspace = true
 serde.workspace = true

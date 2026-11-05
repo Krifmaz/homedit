@@ -520,6 +520,23 @@ async fn scan_schedule_round_trip() {
 }
 
 #[tokio::test]
+async fn scan_networks_are_listed() {
+    let (st, _d) = state().await;
+    let (code, body) = call(&st, "GET", "/api/scan/networks", None, None).await;
+    assert_eq!(code, StatusCode::OK, "{body}");
+    let v: Value = serde_json::from_str(&body).unwrap();
+    for n in v.as_array().unwrap() {
+        let cidr: scanner::Target = n["cidr"].as_str().unwrap().parse().unwrap();
+        let addr: std::net::IpAddr = n["address"].as_str().unwrap().parse().unwrap();
+        let scanner::Target::Network(net) = cidr else {
+            panic!("{n}")
+        };
+        assert!(net.contains(&addr), "{n}");
+        assert!(n["docker"].is_boolean());
+    }
+}
+
+#[tokio::test]
 async fn api_docs_are_served() {
     let (st, _d) = state().await;
     let (code, yaml) = call(&st, "GET", "/api/openapi.yaml", None, None).await;

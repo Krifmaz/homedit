@@ -14,9 +14,11 @@ use crate::error::{Result, ScanError};
 
 /// Admin-controlled limits that every scan obeys.
 ///
-/// The defaults are conservative: only private, link-local and loopback
-/// addresses, 64 connections in flight, 300 new connections per second and at
-/// most 1024 addresses per scan.
+/// The defaults: only private, link-local and loopback addresses, 512
+/// connections in flight with a 400 ms connect timeout, no per-second cap,
+/// 32 services identified at a time with a 2 s HTTP timeout, and at most
+/// 1024 addresses per scan. Only hosts that answer are port-scanned, so the
+/// load on a network stays small even with these numbers.
 ///
 /// All durations are stored as milliseconds so the policy round-trips cleanly
 /// through JSON, YAML and SQLite.
@@ -53,11 +55,11 @@ impl Default for ScanPolicy {
         Self {
             allow_public: false,
             extra_allowed: Vec::new(),
-            max_concurrency: 64,
-            connects_per_second: 300,
-            connect_timeout_ms: 750,
-            http_timeout_ms: 3_000,
-            fingerprint_concurrency: 8,
+            max_concurrency: 512,
+            connects_per_second: 0,
+            connect_timeout_ms: 400,
+            http_timeout_ms: 2_000,
+            fingerprint_concurrency: 32,
             max_addresses: 1_024,
             max_probes: 10_000_000,
         }

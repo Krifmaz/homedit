@@ -472,6 +472,16 @@ paths:
       summary: Stored scans, newest first (admin)
       responses:
         "200": { description: "[{id, startedAt, finishedAt, requestedBy, services}]" }
+  /api/scan/networks:
+    get:
+      tags: [scanner]
+      summary: The server's private networks, the default scan targets (admin)
+      description: >-
+        Each interface's /24 (smaller prefixes kept), LAN networks first. `docker` marks Docker
+        networks, recognised by interface name or by the Docker API's container addresses.
+        The server's own addresses are skipped when a range covers them.
+      responses:
+        "200": { description: "[{cidr, interface, address, docker}]" }
   /api/scan/schedule:
     get:
       tags: [scanner]
@@ -695,6 +705,21 @@ components:
                 kind: { type: string, const: list }
                 ports: { type: string, examples: ["80,443,8000-8100"] }
         fingerprint: { type: boolean, default: true }
+        discover:
+          type: boolean
+          default: true
+          description: >-
+            Find live hosts in ranges first (a quick connect to a few common ports, reverse DNS,
+            the ARP table) and port-scan only those. Typed addresses and hostnames are always scanned.
+        docker:
+          type: boolean
+          default: true
+          description: List the Docker host's published ports first (needs a Docker address)
+        docker_host:
+          type: string
+          description: >-
+            Where the Docker host's published ports are reached. Defaults to the server's LAN
+            address, else the private address the request came in on.
     ScanJob:
       type: object
       properties:

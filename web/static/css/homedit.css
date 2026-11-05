@@ -192,6 +192,10 @@ textarea.input.mono { font-size: 13px; min-height: 140px; }
 .scan-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: var(--radius); font-size: 13px; }
 .scan-progress { display: flex; align-items: center; gap: 10px; }
 .scan-progress progress { flex: 1; accent-color: var(--accent); }
+.scan-live { display: flex; flex-direction: column; gap: 6px; }
+.scan-counts { font-size: 14px; }
+.scan-live-apps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; }
+.scan-live-apps li { display: flex; gap: 6px; align-items: baseline; padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; }
 .scan-list > li { align-items: flex-start; }
 .scan-list a { color: var(--accent); word-break: break-all; }
 .scan-item-main { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

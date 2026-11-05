@@ -6,8 +6,8 @@
 //! * **Targets**: CIDR ranges, single addresses and hostnames ([`Target`]).
 //! * **Safety**: only private, link-local and loopback addresses unless the
 //!   admin allows more ([`ScanPolicy`]); plain TCP connect checks with no raw
-//!   sockets or extra privileges ([`connect`]); a per-second rate limit and a
-//!   concurrency cap ([`RateLimiter`]); size limits per scan; an audit record
+//!   sockets or extra privileges ([`connect`]); a concurrency cap and an
+//!   optional per-second rate limit ([`RateLimiter`]); size limits per scan; an audit record
 //!   for every scan on the [`AUDIT_TARGET`] tracing target.
 //! * **Ports**: 80, 443, 3000–9999 and every catalogue port by default, the
 //!   catalogue ports only, an explicit list, or the full range on request
@@ -16,8 +16,15 @@
 //!   and known unauthenticated API paths, matched against a built-in
 //!   [`Catalogue`] of 44 apps ([`fingerprint`]). Unknown web apps are still
 //!   reported with their title and favicon.
+//! * **Live hosts first**: addresses from a range are checked with a quick
+//!   connect to a few common ports, reverse DNS and the ARP table, and only
+//!   hosts that answer are port-scanned. Open ports are identified as soon
+//!   as they are found.
 //! * **Docker**: published ports read from the Docker API, so apps on a known
-//!   Docker host appear without scanning ([`docker`]).
+//!   Docker host appear without scanning ([`docker`]), and hosts on Docker
+//!   networks are named after their container.
+//! * **Default targets**: [`local_networks`] lists this machine's private
+//!   networks (each interface's /24) and its own addresses.
 //! * **Rescans**: [`diff()`] compares two reports and words the changes
 //!   ("Jellyfin found on 10.0.1.7:8096").
 //!
@@ -58,6 +65,7 @@ pub mod diff;
 pub mod docker;
 mod error;
 pub mod fingerprint;
+pub mod net;
 pub mod policy;
 pub mod ports;
 pub mod rate;
@@ -67,14 +75,15 @@ pub mod target;
 
 pub use catalogue::{AppDef, Catalogue};
 pub use diff::{ScanDiff, ServiceChange, diff};
-pub use docker::{DockerEndpoint, PublishedPort};
+pub use docker::{ContainerAddress, DockerEndpoint, DockerInventory, PublishedPort};
 pub use error::{Result, ScanError};
 pub use fingerprint::{AppMatch, Favicon, HttpInfo, Scheme};
+pub use net::{LocalNetwork, Network, SystemNetwork, local_networks};
 pub use policy::{AddressClass, ScanPolicy, classify};
 pub use ports::{PortList, PortSet};
 pub use rate::RateLimiter;
 pub use report::{
     ContainerRef, DiscoveredService, HostResult, ScanReport, ServiceSuggestion, Source,
 };
-pub use scanner::{AUDIT_TARGET, ScanEvent, ScanRequest, Scanner};
+pub use scanner::{AUDIT_TARGET, DISCOVERY_PORTS, ScanEvent, ScanPhase, ScanRequest, Scanner};
 pub use target::{ResolvedHost, Target};

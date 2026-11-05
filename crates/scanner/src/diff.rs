@@ -163,6 +163,7 @@ mod tests {
             http: None,
             app: a,
             container: None,
+            guess: None,
             on_dashboard: false,
         }
     }
@@ -185,6 +186,7 @@ mod tests {
                 .map(|(ip, services)| HostResult {
                     ip: ip.parse().unwrap(),
                     hostname: None,
+                    name: None,
                     services,
                 })
                 .collect(),
