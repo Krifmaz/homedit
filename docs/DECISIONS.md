@@ -2,6 +2,18 @@
 
 Non-obvious calls made while building homedit, newest first.
 
+## 2026-11-05: An app icon from the kit
+
+homedit's icon is a house with a 2 × 2 dashboard grid inside (one tile in the
+theme's accent-2), drawn once as a glyph in `web/icon.svg`. The kit's
+`kit-icons` (added to the kit for this) puts it on the kit's tile and writes
+the favicon, PNGs, Apple touch and maskable icons and the web manifest.
+
+- They are served at `/app-icons/`, because `/icons/` already serves the
+  dashboard's own icon folder (gethomepage's path).
+- The files are committed, not built in CI, so a build doesn't need the kit's
+  tool; `web/README.md` has the command to run after changing the glyph.
+
 ## 2026-11-05: A widget's failed upstream is a 200
 
 - `GET /api/info/{id}` answers `200 {"error": "<sentence>"}` when its upstream fails (weather, Docker, host resources), like `/api/widgets/{id}/data` already did, not 502 (which read as homedit itself being down) and not 424 (an error status still lands in the client's error path and in proxies' and browsers' logs as a failure). Errors are not cached, so the next poll retries.

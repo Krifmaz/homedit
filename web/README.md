@@ -29,6 +29,18 @@ trunk build --release            # writes web/dist
 ../scripts/kit-css-check.sh      # the kit's stylesheets match the pinned kit (--fix copies them)
 ```
 
+## App icon
+
+`icon.svg` is homedit's glyph (24 × 24, `currentColor` and `{accent-2}`). The kit's `kit-icons` puts it on the kit's
+tile and writes the whole set (favicon, PNGs, Apple touch and maskable icons, web manifest) into
+`public/app-icons/`, served at `/app-icons/` (`/icons/` is the dashboard's own icon folder). After changing the
+glyph, run this in the repository root and commit the result:
+
+```sh
+cargo install --git https://github.com/Krifmaz/kit --tag v0.4.0 kit-icons --locked
+kit-icons web/icon.svg web/public/app-icons --name homedit --base /app-icons/
+```
+
 ## How it fits together
 
 | Path | What it does |
