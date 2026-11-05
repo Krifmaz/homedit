@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="kit-tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2a2d"/><stop offset="1" stop-color="#161617"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#kit-tile)"/><rect x="4" y="4" width="504" height="504" rx="108" fill="none" stroke="#353538" stroke-width="8"/><svg x="102.4" y="102.4" width="307.2" height="307.2" viewBox="0 0 24 24" color="#f0ead6"><path d="M2.5 11 12 3 21.5 11M5 9v11.5h14V9" fill="none" stroke="#f0ead6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="8" y="11" width="3.4" height="3.4" rx="0.8" fill="#f0ead6"/>
+  <rect x="12.6" y="11" width="3.4" height="3.4" rx="0.8" fill="#f0ead6"/>
+  <rect x="8" y="15.6" width="3.4" height="3.4" rx="0.8" fill="#f0ead6"/>
+  <rect x="12.6" y="15.6" width="3.4" height="3.4" rx="0.8" fill="#d6c49a"/></svg></svg>

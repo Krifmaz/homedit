@@ -2,6 +2,18 @@
 
 Non-obvious calls made while building homedit, newest first.
 
+## 2026-11-05: An app icon from the kit
+
+homedit's icon is a house with a 2 × 2 dashboard grid inside (one tile in the
+theme's accent-2), drawn once as a glyph in `web/icon.svg`. The kit's
+`kit-icons` (added to the kit for this) puts it on the kit's tile and writes
+the favicon, PNGs, Apple touch and maskable icons and the web manifest.
+
+- They are served at `/app-icons/`, because `/icons/` already serves the
+  dashboard's own icon folder (gethomepage's path).
+- The files are committed, not built in CI, so a build doesn't need the kit's
+  tool; `web/README.md` has the command to run after changing the glyph.
+
 ## 2026-11-05: A widget's failed upstream is a 200
 
 - `GET /api/info/{id}` answers `200 {"error": "<sentence>"}` when its upstream fails (weather, Docker, host resources), like `/api/widgets/{id}/data` already did, not 502 (which read as homedit itself being down) and not 424 (an error status still lands in the client's error path and in proxies' and browsers' logs as a failure). Errors are not cached, so the next poll retries.
@@ -76,6 +88,27 @@ Clear and Remove are the kit's white-on-red in every theme. Ghost icon buttons
 that also carry `danger` (the ✕ on cards and bookmarks in edit mode) now look
 like the kit's ghost buttons (muted, text colour on hover) instead of red; the
 confirm dialog behind them still says it deletes.
+## 2026-11-05: Store data: icons as uploaded icon files on save
+
+A favicon found by a scan reaches the editor as a `data:` URL. The editor
+previews it, but the dashboard only renders icons the server can resolve
+(names, `custom/…`, URLs), so after saving the card fell back to initials.
+
+- Every save path (editor, history restore, imports, Docker discovery)
+  decodes `data:image/…` icons on cards, groups and bookmarks into the
+  icon folder and stores them as `custom/<name>-<hash>.<ext>`, the same as
+  an icon uploaded from the editor. Startup does the same once for
+  dashboards saved earlier.
+- The conversion lives on the server rather than in the scan page, so
+  every client and every way an inline icon can get in is covered, and the
+  scan page (being reworked for naming) stays untouched.
+- File names carry a content hash, so re-saving or the same favicon on two
+  cards reuses one file. Non-image or oversized (> 2 MB) `data:` URLs are
+  left as they are rather than dropped.
+- The server does not render `data:` icons directly: icons stay small
+  references in the config and are served with the upload folder's
+  sandboxing headers.
+
 
 ## 2026-11-05: Name scanned services from cleaned page titles
 

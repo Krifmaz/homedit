@@ -546,3 +546,80 @@ async fn api_docs_are_served() {
     assert_eq!(code, StatusCode::OK);
     assert!(html.contains("<title>homedit API</title>"), "{html}");
 }
+
+/// Scan → add → save → card: a favicon the scan found arrives in the editor
+/// as a `data:` URL. Saving stores it as an uploaded icon, so the dashboard
+/// card loads the same image the editor previewed instead of initials.
+#[tokio::test]
+async fn scanned_favicon_shows_on_the_card_after_saving() {
+    use base64::Engine as _;
+    let (st, dir) = state().await;
+    let png = b"\x89PNG\r\n\x1a\nFAVICON";
+    let favicon = format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(png)
+    );
+
+    // Add the scanned service the way the scan page does, then save.
+    let (_, body) = call(&st, "GET", "/api/config", None, None).await;
+    let mut doc: Value = serde_json::from_str(&body).unwrap();
+    doc["groups"][0]["items"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"name": "OPNsense", "href": "https://10.0.1.1", "icon": favicon}));
+    let (code, body) = call(&st, "PUT", "/api/config", Some(doc), Some("2")).await;
+    assert_eq!(code, StatusCode::OK, "{body}");
+
+    // The editor now holds an uploaded icon name.
+    let (_, body) = call(&st, "GET", "/api/config", None, None).await;
+    let doc: Value = serde_json::from_str(&body).unwrap();
+    let name = doc["groups"][0]["items"][1]["icon"].as_str().unwrap();
+    assert!(name.starts_with("custom/opnsense-"), "{name}");
+
+    // The card gets a URL for it, and that URL serves the favicon.
+    let (_, body) = call(&st, "GET", "/api/dashboard", None, None).await;
+    let v: Value = serde_json::from_str(&body).unwrap();
+    let item = &v["groups"][0]["items"][1];
+    assert_eq!(item["iconKind"], "image");
+    let url = item["icon"].as_str().unwrap();
+    assert_eq!(url, format!("/icons/{name}"));
+    let resp = app(st.clone())
+        .oneshot(Request::get(url).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(&bytes[..], png);
+    drop(dir);
+}
+
+/// Dashboards saved before this fix keep `data:` icons; startup moves them
+/// into the icon folder.
+#[tokio::test]
+async fn stored_data_icons_are_migrated_on_start() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Db::open_in_memory().await.unwrap();
+    let mut svc = Service::new("Router", Some("https://10.0.1.1"));
+    svc.icon = Some("data:image/png;base64,UE5H".into());
+    let dash = Dashboard {
+        groups: vec![Group {
+            name: "Net".into(),
+            services: vec![svc],
+            ..Group::default()
+        }],
+        ..Dashboard::default()
+    };
+    db.save_dashboard(&dash, None, None, None).await.unwrap();
+    let st = AppState::with_db(db, dir.path().to_owned()).await.unwrap();
+    let stored = st.db.load_dashboard().await.unwrap();
+    let name = stored.groups[0].services[0].icon.clone().unwrap();
+    assert!(
+        name.starts_with("custom/router-") && name.ends_with(".png"),
+        "{name}"
+    );
+    let file = dir
+        .path()
+        .join("icons")
+        .join(name.trim_start_matches("custom/"));
+    assert_eq!(std::fs::read(file).unwrap(), b"PNG");
+}

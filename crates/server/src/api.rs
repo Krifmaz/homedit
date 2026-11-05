@@ -199,6 +199,7 @@ async fn put_config(
     let mut dash = view::from_view(&doc, &stored)
         .map_err(|e| ApiError::new(StatusCode::UNPROCESSABLE_ENTITY, e.to_string()))?;
     secrets::seal(&mut dash, state.auth.secrets());
+    icons::store_inline_icons(&mut dash, &state.icon_dir()).map_err(ApiError::internal)?;
     let (version, _) = state
         .db
         .save_dashboard(&dash, expected, Some(&admin.author()), Some("edited"))
@@ -228,7 +229,8 @@ async fn history_restore(
     State(state): State<AppState>,
     Path(version): Path<i64>,
 ) -> Result<Json<Saved>, ApiError> {
-    let dash = state.db.version_snapshot(version).await?;
+    let mut dash = state.db.version_snapshot(version).await?;
+    icons::store_inline_icons(&mut dash, &state.icon_dir()).map_err(ApiError::internal)?;
     let summary = format!("restored version {version}");
     let (new_version, _) = state
         .db
