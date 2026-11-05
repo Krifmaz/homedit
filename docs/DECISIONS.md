@@ -67,3 +67,12 @@ finished scan of a bare address that found nothing offers a one-click
   widening stays an explicit choice in the UI.
 - The question uses `window.confirm` like the existing "all 65,535 ports"
   prompt. When the kit's confirm dialog is adopted, both switch together.
+
+## 2026-11-05: Danger buttons use the kit's style
+
+homedit.css re-coloured `.btn.danger` text to `var(--err)` on top of the kit's
+red fill, so Delete and Clear were red on red. The override is gone: Delete,
+Clear and Remove are the kit's white-on-red in every theme. Ghost icon buttons
+that also carry `danger` (the ✕ on cards and bookmarks in edit mode) now look
+like the kit's ghost buttons (muted, text colour on hover) instead of red; the
+confirm dialog behind them still says it deletes.
