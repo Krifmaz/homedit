@@ -88,3 +88,23 @@ Clear and Remove are the kit's white-on-red in every theme. Ghost icon buttons
 that also carry `danger` (the ✕ on cards and bookmarks in edit mode) now look
 like the kit's ghost buttons (muted, text colour on hover) instead of red; the
 confirm dialog behind them still says it deletes.
+## 2026-11-05: Store data: icons as uploaded icon files on save
+
+A favicon found by a scan reaches the editor as a `data:` URL. The editor
+previews it, but the dashboard only renders icons the server can resolve
+(names, `custom/…`, URLs), so after saving the card fell back to initials.
+
+- Every save path (editor, history restore, imports, Docker discovery)
+  decodes `data:image/…` icons on cards, groups and bookmarks into the
+  icon folder and stores them as `custom/<name>-<hash>.<ext>`, the same as
+  an icon uploaded from the editor. Startup does the same once for
+  dashboards saved earlier.
+- The conversion lives on the server rather than in the scan page, so
+  every client and every way an inline icon can get in is covered, and the
+  scan page (being reworked for naming) stays untouched.
+- File names carry a content hash, so re-saving or the same favicon on two
+  cards reuses one file. Non-image or oversized (> 2 MB) `data:` URLs are
+  left as they are rather than dropped.
+- The server does not render `data:` icons directly: icons stay small
+  references in the config and are served with the upload folder's
+  sandboxing headers.
