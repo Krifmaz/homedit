@@ -45,9 +45,13 @@ fn st(v: &Value, k: &str) -> Option<String> {
 }
 
 fn service_name(svc: &Value) -> String {
+    let http = svc.get("http");
     svc.get("app")
         .and_then(|a| st(a, "name"))
-        .or_else(|| svc.get("http").and_then(|h| st(h, "title")))
+        .or_else(|| http.and_then(|h| st(h, "title")))
+        .or_else(|| http.and_then(|h| st(h, "server")))
+        .or_else(|| svc.get("container").and_then(|c| st(c, "name")))
+        .or_else(|| st(svc, "guess"))
         .unwrap_or_else(|| {
             format!(
                 "Port {}",
@@ -82,7 +86,9 @@ pub fn found_services(job: &Value) -> Vec<Found> {
         .unwrap_or_default();
     for h in &hosts {
         let ip = st(h, "ip").unwrap_or_default();
-        let host = st(h, "hostname").unwrap_or_else(|| ip.clone());
+        let host = st(h, "hostname")
+            .or_else(|| st(h, "name"))
+            .unwrap_or_else(|| ip.clone());
         for s in h
             .get("services")
             .and_then(Value::as_array)
@@ -174,6 +180,123 @@ pub fn scan_progress(job: &Value) -> Option<f64> {
         }
     }
     None
+}
+
+/// What a running scan has found so far, for the live progress line.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Live {
+    /// Still finding live hosts (`done` of `total` addresses checked).
+    pub discovering: bool,
+    /// Steps done in the current phase.
+    pub done: u64,
+    /// Steps planned in the current phase.
+    pub total: u64,
+    /// Live hosts found.
+    pub hosts: usize,
+    /// Apps found: `(ip:port, name)`, in the order they turned up.
+    pub apps: Vec<(String, String)>,
+}
+
+impl Live {
+    /// "Finding hosts: 120 of 254 checked" or "Checking ports: 43%".
+    pub fn phase_text(&self) -> String {
+        if self.discovering {
+            format!("Finding hosts: {} of {} checked", self.done, self.total)
+        } else if let Some(pct) = (self.done * 100).checked_div(self.total) {
+            format!("Checking ports: {}%", pct.min(100))
+        } else {
+            "Starting…".to_string()
+        }
+    }
+
+    /// "3 hosts · 5 apps".
+    pub fn counts_text(&self) -> String {
+        let n =
+            |k: usize, one: &str, many: &str| format!("{k} {}", if k == 1 { one } else { many });
+        format!(
+            "{} · {}",
+            n(self.hosts, "host", "hosts"),
+            n(self.apps.len(), "app", "apps")
+        )
+    }
+}
+
+/// Hosts and apps a running scan has found so far, from its events.
+pub fn live_progress(job: &Value) -> Live {
+    let mut live = Live::default();
+    let mut hosts = std::collections::BTreeSet::new();
+    for e in job
+        .get("events")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let n = |k: &str| e.get(k).and_then(Value::as_u64).unwrap_or(0);
+        match e.get("event").and_then(Value::as_str) {
+            Some("progress") => {
+                live.discovering = e.get("phase").and_then(Value::as_str) == Some("discover");
+                live.done = n("done");
+                live.total = n("total");
+                live.hosts = live.hosts.max(n("hosts") as usize);
+            }
+            Some("host_up") => {
+                hosts.insert(st(e, "ip").unwrap_or_default());
+            }
+            Some("service") => {
+                let Some(svc) = e.get("service") else {
+                    continue;
+                };
+                let key = format!(
+                    "{}:{}",
+                    st(e, "ip").unwrap_or_default(),
+                    svc.get("port").and_then(Value::as_u64).unwrap_or(0)
+                );
+                let is_app = svc.get("app").is_some_and(|a| !a.is_null())
+                    || svc.get("http").is_some_and(|h| !h.is_null());
+                let name = service_name(svc);
+                match live.apps.iter_mut().find(|(k, _)| *k == key) {
+                    Some(slot) => slot.1 = name,
+                    None if is_app => live.apps.push((key, name)),
+                    None => {}
+                }
+            }
+            _ => {}
+        }
+    }
+    live.hosts = live.hosts.max(hosts.len());
+    live
+}
+
+/// The default targets: the server's networks, LAN ones first.
+pub fn network_targets(networks: &Value) -> Vec<String> {
+    networks
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|n| st(n, "cidr"))
+        .collect()
+}
+
+/// "Your networks: 10.0.1.0/24 (eth0), 172.18.0.0/24 (Docker)".
+pub fn networks_text(networks: &Value) -> Option<String> {
+    let list: Vec<String> = networks
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|n| {
+            let cidr = st(n, "cidr")?;
+            let docker = n.get("docker").and_then(Value::as_bool).unwrap_or(false);
+            Some(if docker {
+                format!("{cidr} (Docker)")
+            } else {
+                match st(n, "interface") {
+                    Some(i) => format!("{cidr} ({i})"),
+                    None => cidr,
+                }
+            })
+        })
+        .collect();
+    (!list.is_empty()).then(|| format!("This server is on {}.", list.join(", ")))
 }
 
 /// The targets in the text box: one per line or comma separated.
@@ -305,7 +428,8 @@ fn ports_json(kind: &str, list: &str) -> Value {
 #[component]
 pub fn ScanPanel() -> impl IntoView {
     let a = app();
-    let targets = RwSignal::new("192.168.1.0/24".to_string());
+    let targets = RwSignal::new(String::new());
+    let networks = RwSignal::new(Value::Null);
     let port_kind = RwSignal::new("common".to_string());
     let port_list = RwSignal::new("80,443,8000-9000".to_string());
     let fingerprint = RwSignal::new(true);
@@ -376,6 +500,18 @@ pub fn ScanPanel() -> impl IntoView {
                 );
             }
             schedule.set(Some(s));
+        }
+        // The default targets: the server's own networks (older servers
+        // can't tell, so the usual home range stands in).
+        let nets = api::get("/scan/networks").await.unwrap_or(Value::Null);
+        let list = network_targets(&nets);
+        networks.set(nets);
+        if targets.get_untracked().trim().is_empty() {
+            targets.set(if list.is_empty() {
+                "192.168.1.0/24".to_string()
+            } else {
+                list.join("\n")
+            });
         }
     });
 
@@ -550,6 +686,7 @@ pub fn ScanPanel() -> impl IntoView {
                     <span>"Networks and hosts"</span>
                     <textarea class="input scan-targets" bind:value=targets></textarea>
                     <small>"One per line: a CIDR range (192.168.1.0/24), an address, or a hostname. Only private ranges are allowed unless the server is configured otherwise."</small>
+                    {move || networks.with(networks_text).map(|t| view! { <small class="muted">{t}" Ranges skip the server's own addresses, and only hosts that answer are port-scanned."</small> })}
                 </label>
                 {move || {
                     let b = bare.get();
@@ -597,10 +734,20 @@ pub fn ScanPanel() -> impl IntoView {
 
             {move || running.get().then(|| {
                 let p = job.with(|j| j.as_ref().and_then(scan_progress));
+                let live = job.with(|j| j.as_ref().map(live_progress).unwrap_or_default());
+                let apps = live.apps.clone();
                 view! {
-                    <div class="scan-progress" role="status">
-                        <progress max="1" value=p.map(|p| p.to_string()) aria-label="Scan progress"></progress>
-                        <small class="muted">{p.map(|p| format!("{}%", (p * 100.0).round())).unwrap_or_else(|| "Starting…".into())}</small>
+                    <div class="scan-live" role="status" aria-live="polite">
+                        <div class="scan-progress">
+                            <progress max="1" value=p.map(|p| p.to_string()) aria-label="Scan progress"></progress>
+                            <small class="muted">{live.phase_text()}</small>
+                        </div>
+                        <strong class="scan-counts">{live.counts_text()}</strong>
+                        {(!apps.is_empty()).then(|| view! {
+                            <ul class="scan-live-apps">
+                                {apps.into_iter().map(|(key, name)| view! { <li><span>{name}</span><small class="muted">{key}</small></li> }).collect_view()}
+                            </ul>
+                        })}
                     </div>
                 }
             })}
@@ -868,5 +1015,54 @@ mod tests {
         let w = s.widget.unwrap();
         assert_eq!((w.kind.as_str(), w.fields.len()), ("sonarr", 1));
         assert_eq!(ip_order("10.0.0.9", "10.0.0.10"), std::cmp::Ordering::Less);
+    }
+
+    #[test]
+    fn live_hosts_and_apps() {
+        let job = json!({"running": true, "events": [
+            {"event": "started"},
+            {"event": "service", "ip": "10.0.0.5", "service": {"port": 8096, "app": {"name": "Jellyfin"}, "source": "docker"}},
+            {"event": "progress", "phase": "discover", "done": 120, "total": 254, "hosts": 2},
+            {"event": "host_up", "ip": "10.0.0.5"},
+            {"event": "host_up", "ip": "10.0.0.7", "name": "nas.lan"},
+            {"event": "host_up", "ip": "10.0.0.9"},
+            {"event": "service", "ip": "10.0.0.7", "service": {"port": 22, "http": null}},
+            {"event": "service", "ip": "10.0.0.7", "service": {"port": 8989, "http": {"title": "Sonarr"}}},
+            {"event": "service", "ip": "10.0.0.5", "service": {"port": 8096, "app": {"name": "Jellyfin 10.9"}}}
+        ]});
+        let live = live_progress(&job);
+        assert!(live.discovering);
+        assert_eq!(live.phase_text(), "Finding hosts: 120 of 254 checked");
+        assert_eq!(live.counts_text(), "3 hosts · 2 apps");
+        assert_eq!(
+            live.apps,
+            vec![
+                ("10.0.0.5:8096".to_string(), "Jellyfin 10.9".to_string()),
+                ("10.0.0.7:8989".to_string(), "Sonarr".to_string())
+            ]
+        );
+        let ports = json!({"events": [{"event": "progress", "phase": "ports", "done": 50, "total": 200, "hosts": 1}]});
+        let live = live_progress(&ports);
+        assert_eq!(live.phase_text(), "Checking ports: 25%");
+        assert_eq!(live.counts_text(), "1 host · 0 apps");
+        // Unidentified services are named after the app usually on the port.
+        assert_eq!(
+            service_name(&json!({"port": 8989, "guess": "Sonarr"})),
+            "Sonarr"
+        );
+    }
+
+    #[test]
+    fn default_targets_from_networks() {
+        let nets = json!([
+            {"cidr": "10.0.1.0/24", "interface": "eth0", "address": "10.0.1.5", "docker": false},
+            {"cidr": "172.18.0.0/24", "interface": "br-1", "address": "172.18.0.1", "docker": true}
+        ]);
+        assert_eq!(network_targets(&nets), ["10.0.1.0/24", "172.18.0.0/24"]);
+        assert_eq!(
+            networks_text(&nets).unwrap(),
+            "This server is on 10.0.1.0/24 (eth0), 172.18.0.0/24 (Docker)."
+        );
+        assert_eq!(networks_text(&Value::Null), None);
     }
 }

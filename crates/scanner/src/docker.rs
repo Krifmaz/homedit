@@ -130,6 +130,7 @@ impl PublishedPort {
             http: None,
             app: self.app.clone(),
             container: Some(self.container.clone()),
+            guess: None,
             on_dashboard: false,
         }
     }
@@ -149,6 +150,44 @@ struct ApiContainer {
     labels: Option<BTreeMap<String, String>>,
     #[serde(default)]
     ports: Vec<ApiPort>,
+    #[serde(default)]
+    network_settings: Option<ApiNetworkSettings>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct ApiNetworkSettings {
+    #[serde(default)]
+    networks: Option<BTreeMap<String, ApiEndpoint>>,
+}
+
+#[derive(Deserialize)]
+struct ApiEndpoint {
+    #[serde(rename = "IPAddress", default)]
+    ip_address: String,
+}
+
+/// A running container's address on one of its Docker networks.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContainerAddress {
+    /// The container.
+    pub container: ContainerRef,
+    /// Its address on the network.
+    pub ip: IpAddr,
+    /// The Docker network's name.
+    pub network: String,
+    /// The app the image ships, if the catalogue knows it.
+    pub app: Option<AppMatch>,
+}
+
+/// Everything a scan uses from one Docker host, read in one request.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DockerInventory {
+    /// Ports published on the host, as [`published_ports`] lists them.
+    pub published: Vec<PublishedPort>,
+    /// Container addresses on Docker networks, so hosts found there are
+    /// named by their container.
+    pub addresses: Vec<ContainerAddress>,
 }
 
 #[derive(Deserialize)]
@@ -172,6 +211,15 @@ pub async fn published_ports(
     endpoint: &DockerEndpoint,
     catalogue: &Catalogue,
 ) -> Result<Vec<PublishedPort>> {
+    Ok(inventory(endpoint, catalogue).await?.published)
+}
+
+/// Lists the published ports and the network addresses of running
+/// containers, with one `GET /containers/json`.
+pub async fn inventory(
+    endpoint: &DockerEndpoint,
+    catalogue: &Catalogue,
+) -> Result<DockerInventory> {
     let body = tokio::time::timeout(DOCKER_TIMEOUT, get(endpoint, "/containers/json"))
         .await
         .map_err(|_| ScanError::Docker("timed out".into()))??;
@@ -180,8 +228,9 @@ pub async fn published_ports(
     Ok(parse_containers(containers, catalogue))
 }
 
-fn parse_containers(containers: Vec<ApiContainer>, catalogue: &Catalogue) -> Vec<PublishedPort> {
+fn parse_containers(containers: Vec<ApiContainer>, catalogue: &Catalogue) -> DockerInventory {
     let mut out = Vec::new();
+    let mut addresses = Vec::new();
     for c in containers {
         let container = ContainerRef {
             id: c.id.chars().take(12).collect(),
@@ -206,6 +255,20 @@ fn parse_containers(containers: Vec<ApiContainer>, catalogue: &Catalogue) -> Vec
             .into_iter()
             .filter(|(k, _)| k.starts_with("homepage."))
             .collect();
+        let networks = c
+            .network_settings
+            .and_then(|n| n.networks)
+            .unwrap_or_default();
+        for (network, ep) in networks {
+            if let Ok(ip) = ep.ip_address.parse::<IpAddr>() {
+                addresses.push(ContainerAddress {
+                    container: container.clone(),
+                    ip,
+                    network,
+                    app: app.clone(),
+                });
+            }
+        }
         let mut seen = HashSet::new();
         for p in &c.ports {
             let Some(public) = p.public_port else {
@@ -237,7 +300,11 @@ fn parse_containers(containers: Vec<ApiContainer>, catalogue: &Catalogue) -> Vec
             .cmp(&b.host_port)
             .then(a.host_ip.cmp(&b.host_ip))
     });
-    out
+    addresses.sort_by_key(|a| a.ip);
+    DockerInventory {
+        published: out,
+        addresses,
+    }
 }
 
 /// Groups published ports into a [`HostResult`] for the Docker host at
@@ -257,6 +324,7 @@ pub fn host_result(
     HostResult {
         ip: host_ip,
         hostname,
+        name: None,
         services,
     }
 }

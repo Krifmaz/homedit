@@ -458,3 +458,97 @@ async fn docker_ports_without_fingerprinting() {
     );
     assert_eq!(ports[0].host_ip, None);
 }
+
+/// Serves one `GET /containers/json` answer on a Unix socket.
+#[cfg(unix)]
+async fn fake_docker(name: &str, containers: String) -> (DockerEndpoint, std::path::PathBuf) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let dir = std::env::temp_dir().join(format!("homedit-scanner-{name}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let socket = dir.join("docker.sock");
+    let _ = std::fs::remove_file(&socket);
+    let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+    tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let mut buf = vec![0u8; 4096];
+            let _ = stream.read(&mut buf).await;
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{containers}",
+                containers.len()
+            );
+            let _ = stream.write_all(resp.as_bytes()).await;
+        }
+    });
+    (format!("unix://{}", socket.display()).parse().unwrap(), dir)
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn docker_ports_come_first_and_containers_are_named() {
+    let host: IpAddr = "127.0.0.1".parse().unwrap();
+    let container_ip: IpAddr = "127.0.0.2".parse().unwrap();
+    let own: IpAddr = "127.0.0.3".parse().unwrap();
+    let jellyfin = common::jellyfin(host).await;
+    let sonarr = common::sonarr(container_ip).await;
+    let mine = common::unknown_app(own).await;
+    let containers = format!(
+        r#"[
+  {{"Id":"4f2a9c1d8e7b6a5f4e3d2c1b","Names":["/jellyfin"],"Image":"jellyfin/jellyfin:10.10.3","State":"running",
+    "Ports":[{{"IP":"0.0.0.0","PrivatePort":8096,"PublicPort":{},"Type":"tcp"}}]}},
+  {{"Id":"aaaaaaaaaaaaaaaaaaaaaaaa","Names":["/sonarr"],"Image":"lscr.io/linuxserver/sonarr:latest","State":"running",
+    "Ports":[],"NetworkSettings":{{"Networks":{{"media_default":{{"IPAddress":"127.0.0.2"}}}}}}}}
+]"#,
+        jellyfin.port()
+    );
+    let (endpoint, dir) = fake_docker("first", containers).await;
+    let scanner = Scanner::new(fast_policy())
+        .unwrap()
+        .with_own_addresses([own])
+        .with_docker(endpoint, Some(host));
+    let (tx, mut rx) = tokio::sync::mpsc::channel(10_000);
+    let req = request(
+        "127.0.0.0/29",
+        &[jellyfin.port(), sonarr.port(), mine.port()],
+    );
+    let report = scanner.scan(req, Some(tx)).await.unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let mut events = Vec::new();
+    while let Ok(e) = rx.try_recv() {
+        events.push(e);
+    }
+    // The Docker port is announced before any connection is tried.
+    let first_service = events
+        .iter()
+        .position(|e| matches!(e, ScanEvent::Service { .. }))
+        .unwrap();
+    let first_open = events
+        .iter()
+        .position(|e| matches!(e, ScanEvent::PortOpen { .. }))
+        .unwrap();
+    assert!(first_service < first_open, "{events:#?}");
+    // ...and not probed again.
+    assert!(!events.iter().any(
+        |e| matches!(e, ScanEvent::PortOpen { ip, port } if *ip == host && *port == jellyfin.port())
+    ));
+
+    let jf = report
+        .services()
+        .find(|(h, s)| h.ip == host && s.port == jellyfin.port())
+        .unwrap()
+        .1;
+    assert_eq!(jf.source, Source::Docker);
+    assert_eq!(jf.app.as_ref().unwrap().version.as_deref(), Some("10.10.3"));
+
+    let (h, s) = report
+        .services()
+        .find(|(h, _)| h.ip == container_ip)
+        .unwrap();
+    assert_eq!(h.name.as_deref(), Some("sonarr"));
+    assert_eq!(s.container.as_ref().unwrap().name, "sonarr");
+    assert_eq!(s.app.as_ref().unwrap().id, "sonarr");
+
+    // The server's own address is left out of the range.
+    assert!(!report.hosts.iter().any(|h| h.ip == own));
+    assert!(!report.scanned_addresses.contains(&own));
+}

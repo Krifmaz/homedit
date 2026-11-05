@@ -137,7 +137,8 @@ async fn settings_schema_and_values() {
     let (s, v) = call(&st, "GET", "/api/settings", None, false).await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(v["auth_enabled"], json!(false));
-    assert_eq!(v["scan_rate"], json!(300));
+    assert_eq!(v["scan_rate"], json!(0));
+    assert_eq!(v["scan_concurrency"], json!(512));
 }
 
 #[tokio::test]

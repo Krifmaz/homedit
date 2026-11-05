@@ -2,6 +2,19 @@
 
 Non-obvious calls made while building homedit, newest first.
 
+## 2026-11-05: Fast and accurate network scan (after Caddymium's)
+
+- Live hosts first: addresses from a range get a quick connect to 16 common ports (a refused connection counts as an answer), a reverse DNS lookup and a look at the ARP table, and only hosts that answer are port-scanned. Addresses and hostnames typed one by one skip the check and are always scanned, since the admin named them. `discover: false` in the request brings back the old scan-everything behaviour.
+- A reverse DNS name counts as "up", as in Caddymium: Docker's DNS only answers for running containers. A router that keeps names for stale leases costs one extra port scan (about 6 s at the defaults), not a wrong result.
+- The probes of the live-host check that answered are not repeated in the port scan; the rest of a host's 16 are cancelled as soon as one answers.
+- New defaults: 512 connections at once, 400 ms connect timeout, no per-second cap (still a setting: `HOMEDIT_SCAN_RATE`, 0 = none), 32 fingerprints at a time with a 2 s timeout. Saved settings keep their values; only unset ones move to the new defaults.
+- Unidentified ports are named after the catalogue app usually on that port (`guess`, "Sonarr" on 8989). It is a hint only: `app` stays empty, so no widget is suggested from a port number alone.
+- Reverse DNS and Docker container names are a label (`name` on the host), not the link host: Docker names such as `jellyfin.media_default` don't resolve in a browser, so links keep the address. Docker names lose the network suffix (names with `_` are cut to the first label; LAN hostnames never contain `_`).
+- Default targets come from `GET /api/scan/networks`: each private IPv4 interface's /24 (smaller prefixes kept), LAN first, Docker networks marked from the interface name or the Docker API's container addresses. The usual 192.168.1.0/24 only stands in when the server can't tell. Ranges skip the server's own addresses.
+- Docker first: with a Docker address set, every scan lists published ports before anything else (named by container and image, fingerprinted in the background) and the LAN scan doesn't probe them again. Hosts on Docker networks are named after their container. Published ports are shown at the server's LAN address; in a bridge-networked container, which can't see the LAN address, at the private address the admin opened homedit at (`Host` / `X-Forwarded-Host`), which saved schedules keep. With neither, published ports are skipped and only container names are used.
+- Network detection and live-host discovery stay in homedit's scanner crate rather than the kit: the kit holds app-shell pieces (look, settings, updates, reports), and the scanner crate is already a standalone library Caddymium-style apps could use.
+- Tests use a fake `Network` (probe, reverse DNS, ARP table) on a paused clock: a /24 with seven live hosts, two of them firewalled, gives the same results as a full scan with about a sixth of the time and probes, and the default ports finish in 14.5 s of simulated time.
+
 ## 2026-11-04: Release on the kit's shared workflows
 
 - CI's Rust and web jobs are the kit's `kit-ci.yml`; homedit's own checks (the kit's stylesheets, `cargo doc`, the trunk build) go in its `check` input. The licence check and the image job with its smoke test stay homedit's, since the kit has neither.
